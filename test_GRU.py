@@ -14,7 +14,7 @@ from tree_methods import Node
 import tree_methods
 
 import numpy as np
-import time 
+import time
 
 
 # load pretrained GRU model
@@ -47,7 +47,7 @@ if _cuda is True:
         X_train[i] = X_train[i].cuda()
         y_train[i] = y_train[i].cuda()
     model = model.cuda()
-    
+
 
 lamb1 = 1
 lamb3 = 0
@@ -59,13 +59,13 @@ for e in range(nb_epochs):
         y = y_train[i]
         # set to training mode
         model.train()
-        
+
          # zero gradient
         optimizer.zero_grad()
-        
+
         # forward pass and compute loss
         out, h_list, pred_tree_list = model(X)
-        
+
         # forward pass of traditional GRU
         gru_h_list = gru_model(X)[0]
         gru_h_list = torch.cat([torch.zeros(1,1,_hidden_size), gru_h_list], dim=1)
@@ -89,16 +89,17 @@ for e in range(nb_epochs):
         loss4 = 0
         if lamb4 != 0:
             for l in range(len(pred_tree_list)):
-                loss4 += tree_methods.tree_distance_metric_list(pred_tree_list[l], target_tree_list[l])     
-        
+                loss4 += tree_methods.tree_distance_metric_list(pred_tree_list[l], target_tree_list[l])
+
         # compute gradient and take step in optimizer
         loss_fn = lamb1*loss1 + lamb3*loss3 + lamb4*loss4
-        loss_fn.backward() 
+        loss_fn.backward()
 
         optimizer.step()
 
         print('Epoch:', e+1, i, loss_fn, time.time()-timer)
         print(model.cell.L_list[0])
         print('='*80)
-        
+
 model.eval() # set to evaluation mode
+
