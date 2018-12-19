@@ -15,6 +15,7 @@ import tree_methods
 
 import numpy as np
 import time
+from progressbar_utils import init_progress_bar
 
 
 # load pretrained GRU model
@@ -53,6 +54,8 @@ lamb1 = 1
 lamb3 = 0
 lamb4 = 1
 
+bar = init_progress_bar(nb_epochs * len(X_train))
+bar.start()
 for e in range(nb_epochs):
     for i in range(len(X_train)):
         X = X_train[i]
@@ -100,6 +103,7 @@ for e in range(nb_epochs):
         print('Epoch:', e+1, i, loss_fn, time.time()-timer)
         print(model.cell.L_list[0])
         print('='*80)
+        bar.update(e*nb_epochs + i + 1)
 
 model.eval() # set to evaluation mode
 
