@@ -20,7 +20,7 @@ import dataloader
 
 
 # load pretrained GRU model
-gru_model = torch.load('gru_parameters.pkl')
+gru_model = torch.load('gru_parameters.pkl').cuda(device)
 Lr, Lz, Lh = gru_model.weight_ih_l0.chunk(3)
 Rr, Rz, Rh = gru_model.weight_hh_l0.chunk(3)
 b_ir, b_iz, b_in = gru_model.bias_ih_l0.chunk(3)
@@ -70,6 +70,7 @@ for e in range(nb_epochs):
         out, h_list, pred_tree_list = model(X)
 
         # forward pass of traditional GRU
+        import pdb; pdb.set_trace()
         gru_h_list = gru_model(X)[0]
         gru_h_list = torch.cat([torch.zeros(1,1,_hidden_size), gru_h_list], dim=1)
         target_tree_list = []
