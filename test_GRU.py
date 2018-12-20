@@ -20,7 +20,7 @@ import dataloader
 
 
 # load pretrained GRU model
-gru_model = torch.load('gru_parameters.pkl').cuda(device)
+gru_model = torch.load('gru_parameters.pkl').to(device)
 Lr, Lz, Lh = gru_model.weight_ih_l0.chunk(3)
 Rr, Rz, Rh = gru_model.weight_hh_l0.chunk(3)
 b_ir, b_iz, b_in = gru_model.bias_ih_l0.chunk(3)
@@ -71,7 +71,7 @@ for e in range(nb_epochs):
 
         # forward pass of traditional GRU
         gru_h_list = gru_model(X)[0].to(device)
-        gru_h_list = torch.cat([torch.zeros(1,1,_hidden_size), gru_h_list], dim=1)
+        gru_h_list = torch.cat([torch.zeros(1,1,_hidden_size, device=device), gru_h_list], dim=1)
         target_tree_list = []
         for t in range(X.shape[1]):
             gru_x = X[:, t, :]
@@ -82,7 +82,7 @@ for e in range(nb_epochs):
         # calculate loss function
         loss1 = 0
         if lamb1 != 0:
-            loss1 = loss(out, torch.Tensor(y).reshape(1,27))
+            loss1 = loss(out, y.reshape(1,27).float())
 
         loss3 = 0
         if lamb3 != 0:
