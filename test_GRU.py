@@ -70,7 +70,6 @@ for e in range(nb_epochs):
         out, h_list, pred_tree_list = model(X)
 
         # forward pass of traditional GRU
-        import pdb; pdb.set_trace()
         gru_h_list = gru_model(X)[0]
         gru_h_list = torch.cat([torch.zeros(1,1,_hidden_size), gru_h_list], dim=1)
         target_tree_list = []
