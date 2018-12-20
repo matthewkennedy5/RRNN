@@ -46,7 +46,7 @@ loss = torch.nn.KLDivLoss()
 if _cuda is True:
     for i in range(5000):
         X_train[i] = X_train[i].cuda()
-        y_train[i] = y_train[i].cuda()
+        y_train[i] = torch.tensor(y_train[i]).cuda()
     model = model.cuda()
 
 
