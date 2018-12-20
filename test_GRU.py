@@ -16,7 +16,12 @@ import tree_methods
 import numpy as np
 import time
 from progressbar_utils import init_progress_bar
+import dataloader
 
+
+device = torch.device('cpu')
+if torch.cuda.is_available():
+    device = torch.device('cuda:1')
 
 # load pretrained GRU model
 gru_model = torch.load('gru_parameters.pkl')
@@ -29,7 +34,6 @@ bz = b_iz + b_hz
 
 
 timer = time.time()
-import dataloader
 X_train, y_train = dataloader.load_data('train20.txt')
 
 _hidden_size = 100
@@ -45,8 +49,8 @@ loss = torch.nn.KLDivLoss()
 #_cuda = GRU._cuda
 if _cuda is True:
     for i in range(5000):
-        X_train[i] = X_train[i].cuda()
-        y_train[i] = torch.tensor(y_train[i]).cuda()
+        X_train[i] = torch.tensor(X_train[i], device=device)
+        y_train[i] = torch.tensor(y_train[i], device=device)
     model = model.cuda()
 
 
