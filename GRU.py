@@ -17,7 +17,7 @@ import tree_methods
 
 device = torch.device('cpu')
 if torch.cuda.is_available():
-    device = torch.device('cuda:1')
+    device = torch.device('cuda:0')
 
 timer = time.time()
 
