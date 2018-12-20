@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-from GRU import RRNNforGRUCell, RRNNforGRU, _cuda
+from GRU import RRNNforGRUCell, RRNNforGRU, device
 
 import torch
 import torch.nn.functional as F
@@ -18,10 +18,6 @@ import time
 from progressbar_utils import init_progress_bar
 import dataloader
 
-
-device = torch.device('cpu')
-if torch.cuda.is_available():
-    device = torch.device('cuda:1')
 
 # load pretrained GRU model
 gru_model = torch.load('gru_parameters.pkl')
@@ -47,11 +43,11 @@ loss = torch.nn.KLDivLoss()
 
 
 #_cuda = GRU._cuda
-if _cuda is True:
-    for i in range(5000):
-        X_train[i] = torch.tensor(X_train[i], device=device)
-        y_train[i] = torch.tensor(y_train[i], device=device)
-    model = model.cuda()
+# if _cuda is True:
+for i in range(5000):
+    X_train[i] = torch.tensor(X_train[i], device=device)
+    y_train[i] = torch.tensor(y_train[i], device=device)
+model = model.to(device)
 
 
 lamb1 = 1

@@ -9,15 +9,17 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 import numpy as np
-import time 
+import time
 
 from tree_methods import Node
 import tree_methods
 
 
+device = torch.device('cpu')
+if torch.cuda.is_available():
+    device = torch.device('cuda:1')
 
 timer = time.time()
-_cuda = False
 
 def retrieve_node(string, x, h_prev, G_node):
     '''
@@ -28,10 +30,7 @@ def retrieve_node(string, x, h_prev, G_node):
     elif string == 'h':
         return Node(h_prev, 'h')
     elif string == '0':
-        if _cuda is True:
-            return Node(torch.zeros(x.shape).cuda(), '0')
-        else:
-            return Node(torch.zeros(x.shape), '0')
+        return Node(torch.zeros(x.shape, device=device), '0')
     elif string[0] == 'G':
         return G_node[int(string[1:])]
     else:
@@ -53,7 +52,7 @@ def retrieve_activation_func(string, vec):
         return vec
     else:
         raise ValueError
-        
+
 def retrieve_binary_func(string, vec1, vec2):
     '''
         return a vector that is calculated by given binary operation and two children vectors
@@ -64,7 +63,7 @@ def retrieve_binary_func(string, vec1, vec2):
         return vec1 * vec2
     else:
         raise ValueError
-        
+
 
 class RRNNforGRUCell(nn.Module):
     def __init__(self, hidden_size):
@@ -80,7 +79,7 @@ class RRNNforGRUCell(nn.Module):
         self.R_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.randn(hidden_size, hidden_size)) for _ in range(self.l)])
         self.b_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.randn(1, hidden_size)) for _ in range(self.l)])
         self.scoring = nn.Linear(hidden_size, 1, bias=False)
-    
+
     def tree_structure_search(self, x, h_prev):
         '''
             This is the "fake" forward process.
@@ -95,12 +94,9 @@ class RRNNforGRUCell(nn.Module):
         components_list = [] # explain on video chat
         G = []  # vectors of nodes in each cell
         G_structure = []    # corresponding structure
-        
+
         for r in range(self.N):
-            if _cuda is True:
-                candidate = [x, h_prev, torch.zeros(1, self.hidden_size).cuda()] + [comp.vector for comp in components_list]
-            else:
-                candidate = [x, h_prev, torch.zeros(1, self.hidden_size)] + [comp.vector for comp in components_list]
+            candidate = [x, h_prev, torch.zeros(1, self.hidden_size, device=device)] + [comp.vector for comp in components_list]
             V_r = []    # same in algo 1 of doc, containing all possible vectors for next node
             V_structure = []    # contains the structure of each vector in V_r
             self.V_r = V_r
@@ -121,8 +117,8 @@ class RRNNforGRUCell(nn.Module):
                         flag = 1
                     else:
                         raise ValueError
-                        
-                    if flag == 0:   
+
+                    if flag == 0:
                         pass
                     else:
                         s_i = candidate[i]
@@ -150,13 +146,13 @@ class RRNNforGRUCell(nn.Module):
                                     V_structure.append([i, j, k, binary_func, 'minus'])
                                     V_r.append(res)
                                     V_structure.append([i, j, k, binary_func, 'identity'])
-                                
+
             scores_list = [self.scoring(v).item() for v in V_r] # calculate the scores for each vector
             max_index = np.argmax(scores_list)  # find the index of the vector with highest score
             max_vector = V_r[max_index]
             max_structure = V_structure[max_index]
 
-            # merge components 
+            # merge components
             i = max_structure[0]
             j = max_structure[1]
             name_list = ['x', 'h', '0']
@@ -193,22 +189,22 @@ class RRNNforGRUCell(nn.Module):
 
     def forward(self, x, h_prev):
         G, G_structure, components_list = self.tree_structure_search(x, h_prev)
-        G_node = [] # containing the Node class instance 
+        G_node = [] # containing the Node class instance
 
         for idx in range(len(G_structure)):
             left_name, right_name, k, binary_func, activation_func, name = G_structure[idx]
-            
+
             L = self.L_list[k]
             R = self.R_list[k]
             b = self.b_list[k]
             left_node = retrieve_node(left_name, x, h_prev, G_node)
-            right_node = retrieve_node(right_name, x, h_prev, G_node)            
+            right_node = retrieve_node(right_name, x, h_prev, G_node)
             if binary_func == 'add':
                 res = torch.mm(left_node.vector, L) + torch.mm(right_node.vector, R) + b
             else:   # elif binary_func == 'mul':
                 res = torch.mm(left_node.vector, L) * torch.mm(right_node.vector, R) + b
             res = retrieve_activation_func(activation_func, res)
-            
+
             node = Node(res, name, structure=G_structure[idx], left_child=left_node, right_child=right_node)
             left_node.parent = node
             right_node.parent = node
@@ -219,12 +215,12 @@ class RRNNforGRUCell(nn.Module):
         G_forward = [node.vector for node in G_node]
         scores_list = [self.scoring(g) for g in G_forward]
         h_next = G_forward[-1]
-        
+
         return h_next, G_forward, G_structure, components_list_forward, G_node, scores_list
-            
-    
-    
-    
+
+
+
+
 class RRNNforGRU(nn.Module):
     def __init__(self, hidden_size, vocab_size):
         super(RRNNforGRU, self).__init__()
@@ -232,45 +228,42 @@ class RRNNforGRU(nn.Module):
         self.hidden_size = hidden_size
         self.cell = RRNNforGRUCell(hidden_size)
         self.output_layer = nn.Linear(hidden_size, vocab_size)
-        
+
     def init_hidden(self):
-        if _cuda is True:
-            return torch.zeros(1, self.hidden_size, requires_grad=True).cuda()
-        else:
-            return torch.zeros(1, self.hidden_size, requires_grad=True) 
-        
+        return torch.zeros(1, self.hidden_size, requires_grad=True, device=device)
+
     def forward(self, inputs):
         time_steps = inputs.size(1)
         h_next = self.init_hidden()
         h_list = []
         pred_tree_list = []
-        
+
         for t in range(time_steps):
             x_t = inputs[:, t, :].reshape(1, -1)
             h_next, G_forward, G_structure, components_list_forward, G_node, scores_list = self.cell(x_t, h_next)
             h_list.append(h_next)
             pred_tree_list.append(G_node)
-            
+
         return self.output_layer(h_next), h_list, pred_tree_list
 
-    
 
-if __name__ == '__main__':        
-    
+
+if __name__ == '__main__':
+
     # test case for RRNNforGRUCell
     x = torch.randn(1, 5)
-    hidden = torch.randn(1, 5)   
+    hidden = torch.randn(1, 5)
     model = RRNNforGRUCell(5)
     if _cuda is True:
         x = x.cuda()
         hidden = hidden.cuda()
         model = model.cuda()
-        
+
     G, G_structure, components_list = model.tree_structure_search(x, hidden)
     h_next, G_forward, G_structure, components_list_forward, G_node, scores_list = model(x, hidden)
 
 
 
 
-    
+
 
