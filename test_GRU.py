@@ -20,6 +20,7 @@ import time
 from progressbar_utils import init_progress_bar
 import dataloader
 
+LOSS_FILE = 'loss.pkl'
 
 # Hyperparameters
 LEARNING_RATE = 1e-4
@@ -41,6 +42,9 @@ bz = b_iz + b_hz
 
 timer = time.time()
 X_train, y_train = dataloader.load_data('train20.txt')
+# Normalize data
+for i, x in enumerate(X_train):
+    X_train[i] = (x - torch.mean(x)) / torch.std(x)
 
 _hidden_size = 100
 _vocab_size = 27
@@ -58,7 +62,6 @@ for i in range(len(X_train)):
 model = model.to(device)
 
 loss_history = np.zeros(nb_epochs * len(X_train))
-loss_file = open('loss.pkl', 'wb')
 bar = init_progress_bar(nb_epochs * len(X_train))
 bar.start()
 for e in range(nb_epochs):
@@ -122,13 +125,12 @@ for e in range(nb_epochs):
         index = e * nb_epochs + i
         loss_history[index] = loss_fn.item()
         bar.update(index + 1)
-        if index % 100 == 0:    # Save out the loss as we go
-            pickle.dump(loss_history, loss_file)
+        if index % 1 == 0:    # Save out the loss as we go
+            pickle.dump(loss_history, open(LOSS_FILE, 'wb'))
             print('\n[INFO] Saved loss history.')
 
 model.eval() # set to evaluation mode
 
-loss_file.close()
 plt.figure()
 plt.plot(loss_history, range(loss_history.shape[0]))
 plt.savefig('loss.png')
