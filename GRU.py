@@ -41,7 +41,7 @@ def retrieve_activation_func(string, vec):
         return a vector with given activation function
     '''
     if vec.abs().max() > 1 and string not in ['tanh', 'sigmoid']:
-        raise ValueError
+        raise ValueError('Vector magnitude must be <= 1 for the activation ' + string)
     if string == 'tanh':
         return torch.tanh(vec)
     elif string == 'sigmoid':
@@ -237,14 +237,16 @@ class RRNNforGRU(nn.Module):
         h_next = self.init_hidden()
         h_list = []
         pred_tree_list = []
+        scores = []
 
         for t in range(time_steps):
             x_t = inputs[:, t, :].reshape(1, -1)
             h_next, G_forward, G_structure, components_list_forward, G_node, scores_list = self.cell(x_t, h_next)
             h_list.append(h_next)
             pred_tree_list.append(G_node)
+            scores.append(scores_list)
 
-        return self.output_layer(h_next), h_list, pred_tree_list
+        return self.output_layer(h_next), h_list, pred_tree_list, scores_list
 
 
 

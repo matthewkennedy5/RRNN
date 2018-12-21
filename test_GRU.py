@@ -21,6 +21,14 @@ from progressbar_utils import init_progress_bar
 import dataloader
 
 
+# Hyperparameters
+LEARNING_RATE = 1e-4
+lamb1 = 1   # Controls the loss for the output character
+lamb2 = 0   # Scoring loss
+lamb3 = 0   # L2 regularization loss
+lamb4 = 1   # Tree distance loss
+nb_epochs = 5
+
 # load pretrained GRU model
 gru_model = torch.load('gru_parameters.pkl').to(device)
 Lr, Lz, Lh = gru_model.weight_ih_l0.chunk(3)
@@ -36,13 +44,11 @@ X_train, y_train = dataloader.load_data('train20.txt')
 
 _hidden_size = 100
 _vocab_size = 27
-nb_epochs = 5
 
 model = RRNNforGRU(_hidden_size, _vocab_size)
-optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
+optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 #loss = torch.nn.CrossEntropyLoss()
 loss = torch.nn.KLDivLoss()
-
 
 #_cuda = GRU._cuda
 # if _cuda is True:
@@ -50,11 +56,6 @@ for i in range(len(X_train)):
     X_train[i] = torch.tensor(X_train[i], device=device)
     y_train[i] = torch.tensor(y_train[i], device=device)
 model = model.to(device)
-
-
-lamb1 = 1
-lamb3 = 0
-lamb4 = 1
 
 loss_history = np.zeros(nb_epochs * len(X_train))
 loss_file = open('loss.pkl', 'wb')
@@ -71,7 +72,7 @@ for e in range(nb_epochs):
         optimizer.zero_grad()
 
         # forward pass and compute loss
-        out, h_list, pred_tree_list = model(X)
+        out, h_list, pred_tree_list, scores = model(X)
 
         # forward pass of traditional GRU
         gru_h_list = gru_model(X)[0].to(device)
@@ -80,13 +81,24 @@ for e in range(nb_epochs):
         for t in range(X.shape[1]):
             gru_x = X[:, t, :]
             gru_h = gru_h_list[:, t, :]
-            target_tree = tree_methods.GRUtree_pytorch(gru_x, gru_h, gru_model.weight_ih_l0, gru_model.weight_hh_l0, gru_model.bias_ih_l0, gru_model.bias_hh_l0)[1]
+            target_tree = tree_methods.GRUtree_pytorch(gru_x, gru_h,
+                                                       gru_model.weight_ih_l0,
+                                                       gru_model.weight_hh_l0,
+                                                       gru_model.bias_ih_l0,
+                                                       gru_model.bias_hh_l0)[1]
             target_tree_list.append(target_tree)
 
         # calculate loss function
         loss1 = 0
         if lamb1 != 0:
             loss1 = loss(out, y.reshape(1,27).float())
+
+        # loss2 is the negative sum of the scores (alpha) of the vector
+        # corresponding to each node. It is an attempt to drive up the scores for
+        # the correct vectors.
+        loss2 = 0
+        if lamb2 != 0:
+            loss2 = -np.sum(scores)
 
         loss3 = 0
         if lamb3 != 0:
@@ -99,7 +111,7 @@ for e in range(nb_epochs):
                 loss4 += tree_methods.tree_distance_metric_list(pred_tree_list[l], target_tree_list[l], device=device)
 
         # compute gradient and take step in optimizer
-        loss_fn = lamb1*loss1 + lamb3*loss3 + lamb4*loss4
+        loss_fn = lamb1*loss1 + lamb2*loss2 + lamb3*loss3 + lamb4*loss4
         loss_fn.backward()
 
         optimizer.step()
