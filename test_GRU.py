@@ -92,7 +92,7 @@ for e in range(nb_epochs):
         loss4 = 0
         if lamb4 != 0:
             for l in range(len(pred_tree_list)):
-                loss4 += tree_methods.tree_distance_metric_list(pred_tree_list[l], target_tree_list[l])
+                loss4 += tree_methods.tree_distance_metric_list(pred_tree_list[l], target_tree_list[l], device=device)
 
         # compute gradient and take step in optimizer
         loss_fn = lamb1*loss1 + lamb3*loss3 + lamb4*loss4
