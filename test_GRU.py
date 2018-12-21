@@ -13,7 +13,9 @@ from torch.autograd import Function
 from tree_methods import Node
 import tree_methods
 
+from matplotlib import pyplot as plt
 import numpy as np
+import pickle
 import time
 from progressbar_utils import init_progress_bar
 import dataloader
@@ -44,7 +46,7 @@ loss = torch.nn.KLDivLoss()
 
 #_cuda = GRU._cuda
 # if _cuda is True:
-for i in range(5000):
+for i in range(len(X_train)):
     X_train[i] = torch.tensor(X_train[i], device=device)
     y_train[i] = torch.tensor(y_train[i], device=device)
 model = model.to(device)
@@ -54,6 +56,8 @@ lamb1 = 1
 lamb3 = 0
 lamb4 = 1
 
+loss_history = np.zeros(nb_epochs * len(X_train))
+loss_file = open('loss.pkl', 'wb')
 bar = init_progress_bar(nb_epochs * len(X_train))
 bar.start()
 for e in range(nb_epochs):
@@ -103,8 +107,16 @@ for e in range(nb_epochs):
         print('Epoch:', e+1, i, loss_fn, time.time()-timer)
         print(model.cell.L_list[0])
         print('='*80)
-        bar.update(e*nb_epochs + i + 1)
+        index = e * nb_epochs + i
+        loss_history[index] = loss_fn.item()
+        bar.update(index + 1)
+        if index % 100 == 0:    # Save out the loss as we go
+            pickle.dump(loss_history, loss_file)
+            print('\n[INFO] Saved loss history.')
 
 model.eval() # set to evaluation mode
 
-
+loss_file.close()
+plt.figure()
+plt.plot(loss_history, range(loss_history.shape[0]))
+plt.savefig('loss.png')
