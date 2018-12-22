@@ -1,0 +1,53 @@
+Text file for logging experiment results.
+
+"Givens:" Adam, normalized X_train, default multipliers etc.
+
+Learning rate = 1e-3
+lamb1 = 1
+lamb2 = 0
+lamb3 = 0
+lamb4 = 1
+Adam optimizer
+Normalized X_train
+Ran 52 iterations before crashing because a vector had a magnitude greater than one. Maybe this is because of a too-high learning rate? Gradients appeared to be normal (not vanishing or exploding), and the loss seemed to be decreasing a little bit (but still very noisy).
+
+1.
+Learning rate = 1e-4
+100 iterations
+lamb1 = 1
+lamb2 = 0
+lamb3 = 0
+lamb4 = 1
+Adam optimizer
+Normalized X_train
+Weights for the first L matrix didn't seem to be changing at all, so either there were vanishing gradients or it was just training slower because of the lower learning rate. Didn't train noticeably. (More iterations needed?)
+
+2.
+Learning rate = 1e-4
+100 iterations
+lamb1 = 1
+lamb2 = 1
+lamb3 = 0
+lamb4 = 1
+Adam optimizer
+Normalized X_train
+Didn't really train--I guess lamb2 didn't help things.
+
+================== TODO =====================
+
+3.
+Learning rate = 1e-4
+1000 iterations
+lamb1 = 1
+lamb2 = 0
+lamb3 = 0
+lamb4 = 1
+
+4.
+Learning rate = 1e-4
+10 epochs of 10 data points
+lamb1 = 1
+lamb2 = 1
+lamb3 = 0
+lamb4 = 1
+
