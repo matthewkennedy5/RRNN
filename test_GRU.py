@@ -20,15 +20,17 @@ import time
 from progressbar_utils import init_progress_bar
 import dataloader
 
-LOSS_FILE = 'loss.pkl'
+LOSS_FILE = 'loss2.pkl'
+SAVE_FILE = 'loss-plots/6.png'
 
 # Hyperparameters
 LEARNING_RATE = 1e-4
 lamb1 = 1   # Controls the loss for the output character
-lamb2 = 0   # Scoring loss
+lamb2 = 1   # Scoring loss
 lamb3 = 0   # L2 regularization loss
 lamb4 = 1   # Tree distance loss
-nb_epochs = 5
+nb_epochs = 2
+NB_DATA = 1
 
 # load pretrained GRU model
 gru_model = torch.load('gru_parameters.pkl').to(device)
@@ -42,6 +44,7 @@ bz = b_iz + b_hz
 
 timer = time.time()
 X_train, y_train = dataloader.load_data('train20.txt')
+X_train = X_train[:NB_DATA]
 # Normalize data
 for i, x in enumerate(X_train):
     X_train[i] = (x - torch.mean(x)) / torch.std(x)
@@ -122,15 +125,15 @@ for e in range(nb_epochs):
         print('Epoch:', e+1, i, loss_fn, time.time()-timer)
         print(model.cell.L_list[0])
         print('='*80)
-        index = e * nb_epochs + i
+        index = e * len(X_train) + i
         loss_history[index] = loss_fn.item()
         bar.update(index + 1)
-        if index % 1 == 0:    # Save out the loss as we go
+        if index % 100 == 0:    # Save out the loss as we go
             pickle.dump(loss_history, open(LOSS_FILE, 'wb'))
             print('\n[INFO] Saved loss history.')
 
 model.eval() # set to evaluation mode
 
 plt.figure()
-plt.plot(loss_history, range(loss_history.shape[0]))
-plt.savefig('loss.png')
+plt.plot(range(loss_history.shape[0]), loss_history)
+plt.savefig(SAVE_FILE)
