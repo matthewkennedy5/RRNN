@@ -21,15 +21,15 @@ from progressbar_utils import init_progress_bar
 import dataloader
 
 LOSS_FILE = 'loss2.pkl'
-SAVE_FILE = 'loss-plots/6.png'
+SAVE_FILE = 'loss-plots/crash.png'
 
 # Hyperparameters
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-3
 lamb1 = 1   # Controls the loss for the output character
 lamb2 = 1   # Scoring loss
 lamb3 = 0   # L2 regularization loss
 lamb4 = 1   # Tree distance loss
-nb_epochs = 2
+nb_epochs = 200
 NB_DATA = 1
 
 # load pretrained GRU model
@@ -45,9 +45,15 @@ bz = b_iz + b_hz
 timer = time.time()
 X_train, y_train = dataloader.load_data('train20.txt')
 X_train = X_train[:NB_DATA]
-# Normalize data
+
+# Normalize data. TODO: Make X_train a 4D tensor to begin with
+X_train_tensor = torch.empty((len(X_train),) + X_train[0].size())
 for i, x in enumerate(X_train):
-    X_train[i] = (x - torch.mean(x)) / torch.std(x)
+    X_train_tensor[i, :, :, :] = X_train[i]
+X_train_tensor -= torch.mean(X_train_tensor, dim=0)
+X_train_tensor /= torch.std(X_train_tensor, dim=0)
+for i in range(len(X_train)):
+    X_train[i] = X_train_tensor[i, :, :, :]
 
 _hidden_size = 100
 _vocab_size = 27
