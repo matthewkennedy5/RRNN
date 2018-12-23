@@ -24,7 +24,7 @@ LOSS_FILE = 'loss2.pkl'
 SAVE_FILE = 'loss-plots/crash.png'
 
 # Hyperparameters
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 1e-4
 lamb1 = 1   # Controls the loss for the output character
 lamb2 = 1   # Scoring loss
 lamb3 = 0   # L2 regularization loss
