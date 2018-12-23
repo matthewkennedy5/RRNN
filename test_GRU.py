@@ -51,7 +51,8 @@ X_train_tensor = torch.empty((len(X_train),) + X_train[0].size())
 for i, x in enumerate(X_train):
     X_train_tensor[i, :, :, :] = X_train[i]
 X_train_tensor -= torch.mean(X_train_tensor, dim=0)
-X_train_tensor /= torch.std(X_train_tensor, dim=0)
+if NB_DATA > 1:
+    X_train_tensor /= torch.std(X_train_tensor, dim=0)
 for i in range(len(X_train)):
     X_train[i] = X_train_tensor[i, :, :, :]
 
