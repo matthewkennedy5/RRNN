@@ -19,9 +19,6 @@ class Node(object):
         self.rightchild = right_child
         self.parent = None
 
-    def get_vector(self):
-        return self.vector
-
 
 def depth(node):
     '''
