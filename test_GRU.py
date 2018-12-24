@@ -30,7 +30,7 @@ lamb2 = 1   # Scoring loss
 lamb3 = 0   # L2 regularization loss
 lamb4 = 1   # Tree distance loss
 nb_epochs = 200
-NB_DATA = 1
+NB_DATA = 10
 
 # load pretrained GRU model
 gru_model = torch.load('gru_parameters.pkl').to(device)
@@ -47,14 +47,14 @@ X_train, y_train = dataloader.load_data('train20.txt')
 X_train = X_train[:NB_DATA]
 
 # Normalize data. TODO: Make X_train a 4D tensor to begin with
-X_train_tensor = torch.empty((len(X_train),) + X_train[0].size())
-for i, x in enumerate(X_train):
-    X_train_tensor[i, :, :, :] = X_train[i]
-X_train_tensor -= torch.mean(X_train_tensor, dim=0)
 if NB_DATA > 1:
+    X_train_tensor = torch.empty((len(X_train),) + X_train[0].size())
+    for i, x in enumerate(X_train):
+        X_train_tensor[i, :, :, :] = X_train[i]
+    X_train_tensor -= torch.mean(X_train_tensor, dim=0)
     X_train_tensor /= torch.std(X_train_tensor, dim=0)
-for i in range(len(X_train)):
-    X_train[i] = X_train_tensor[i, :, :, :]
+    for i in range(len(X_train)):
+        X_train[i] = X_train_tensor[i, :, :, :]
 
 _hidden_size = 100
 _vocab_size = 27
