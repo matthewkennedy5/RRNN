@@ -36,20 +36,21 @@ def retrieve_node(string, x, h_prev, G_node):
     else:
         raise ValueError
 
-def retrieve_activation_func(string, vec):
+def retrieve_activation_func(string, vec, multiplier):
     '''
         return a vector with given activation function
     '''
     if vec.abs().max() > 1 and string not in ['tanh', 'sigmoid']:
+        print(vec)
         raise ValueError('Vector magnitude must be <= 1 for the activation ' + string)
     if string == 'tanh':
-        return torch.tanh(vec)
+        return multiplier * torch.tanh(vec)
     elif string == 'sigmoid':
-        return torch.sigmoid(vec)
+        return multiplier * torch.sigmoid(vec)
     elif string == 'minus':
-        return 1-vec
+        return multiplier * (1-vec)
     elif string == 'identity':
-        return vec
+        return multiplier * vec
     else:
         raise ValueError
 
@@ -94,6 +95,7 @@ class RRNNforGRUCell(nn.Module):
         components_list = [] # explain on video chat
         G = []  # vectors of nodes in each cell
         G_structure = []    # corresponding structure
+        Gprime_structure = []
 
         for r in range(self.N):
             candidate = [x, h_prev, torch.zeros(1, self.hidden_size, device=device)] + [comp.vector for comp in components_list]
@@ -138,19 +140,25 @@ class RRNNforGRUCell(nn.Module):
                                     V_r.append(self.multiplier*torch.tanh(res))
                                     V_structure.append([i, j, k, binary_func, 'tanh'])
                                 else:
-                                    V_r.append(torch.sigmoid(res))
+                                    V_r.append(self.multiplier * torch.sigmoid(res))
                                     V_structure.append([i, j, k, binary_func, 'sigmoid'])
-                                    V_r.append(torch.tanh(res))
+                                    V_r.append(self.multiplier * torch.tanh(res))
                                     V_structure.append([i, j, k, binary_func, 'tanh'])
-                                    V_r.append(1-res)
+                                    V_r.append(self.multiplier * (1-res))
                                     V_structure.append([i, j, k, binary_func, 'minus'])
-                                    V_r.append(res)
+                                    V_r.append(self.multiplier * res)
                                     V_structure.append([i, j, k, binary_func, 'identity'])
 
             scores_list = [self.scoring(v).item() for v in V_r] # calculate the scores for each vector
             max_index = np.argmax(scores_list)  # find the index of the vector with highest score
             max_vector = V_r[max_index]
             max_structure = V_structure[max_index]
+
+            # Also grab the 2nd highest scoring vector and structure to be used
+            # in the calculation of loss2
+            second_index = np.where(np.argsort(scores_list) == 1)[0][0]
+            second_vector = V_r[second_index]
+            second_structure = V_structure[second_index]
 
             # merge components
             i = max_structure[0]
@@ -184,13 +192,16 @@ class RRNNforGRUCell(nn.Module):
                 components_list.append(new_component)
                 G.append(max_vector)
                 G_structure.append([left_node.name, right_node.name] + max_structure[2:] + ['G%d'%r])
+            Gprime_structure.append([])
         scores_list = [self.scoring(g) for g in G]
         return G, G_structure, components_list
 
     def forward(self, x, h_prev):
         G, G_structure, components_list = self.tree_structure_search(x, h_prev)
         G_node = [] # containing the Node class instance
+        second_vectors = []
 
+        # Builds the tree from the bottom up
         for idx in range(len(G_structure)):
             left_name, right_name, k, binary_func, activation_func, name = G_structure[idx]
 
@@ -203,25 +214,32 @@ class RRNNforGRUCell(nn.Module):
                 res = torch.mm(left_node.vector, L) + torch.mm(right_node.vector, R) + b
             else:   # elif binary_func == 'mul':
                 res = torch.mm(left_node.vector, L) * torch.mm(right_node.vector, R) + b
-            res = retrieve_activation_func(activation_func, res)
+            res = retrieve_activation_func(activation_func, res, self.multiplier)
 
             node = Node(res, name, structure=G_structure[idx], left_child=left_node, right_child=right_node)
             left_node.parent = node
             right_node.parent = node
 
+            # second_vectors.append()
+
             G_node.append(node)
             components_list_forward = [G_node[i] for i in range(len(G_node)) if G_node[i].parent is None]
+
+        # for idx in range(len(Gprime_structure))
 
         G_forward = [node.vector for node in G_node]
         scores_list = [self.scoring(g) for g in G_forward]
         h_next = G_forward[-1]
 
-        return h_next, G_forward, G_structure, components_list_forward, G_node, scores_list
+        # Gprime_forward = [node.vector for node in Gprime_node]
+        # second_scores_list = [self.scoring(g) for g in Gprime_forward]
 
-
+        return (h_next, G_forward, G_structure, components_list_forward, G_node,
+                scores_list)#, second_scores_list)
 
 
 class RRNNforGRU(nn.Module):
+
     def __init__(self, hidden_size, vocab_size):
         super(RRNNforGRU, self).__init__()
         self.vocab_size = vocab_size
@@ -247,7 +265,6 @@ class RRNNforGRU(nn.Module):
             scores.append(scores_list)
 
         return self.output_layer(h_next), h_list, pred_tree_list, scores_list
-
 
 
 if __name__ == '__main__':
