@@ -10,6 +10,7 @@ import itertools
 import random
 
 class Node(object):
+
     def __init__(self, vector, name=None, structure=None, left_child=None, right_child=None, parent=None):
         self.vector = vector
         self.name = name
@@ -17,6 +18,9 @@ class Node(object):
         self.leftchild = left_child
         self.rightchild = right_child
         self.parent = None
+
+    def get_vector(self):
+        return self.vector
 
 
 def depth(node):
