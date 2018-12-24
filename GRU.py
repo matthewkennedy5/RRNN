@@ -192,14 +192,14 @@ class RRNNforGRUCell(nn.Module):
                 components_list.append(new_component)
                 G.append(max_vector)
                 G_structure.append([left_node.name, right_node.name] + max_structure[2:] + ['G%d'%r])
-            Gprime_structure.append([])
+            Gprime_structure.append([left_node.name, right_node.name] + second_structure[2:] + ['G%d' % r])
         scores_list = [self.scoring(g) for g in G]
-        return G, G_structure, components_list
+        return G, G_structure, Gprime_structure, components_list
 
     def forward(self, x, h_prev):
-        G, G_structure, components_list = self.tree_structure_search(x, h_prev)
+        G, G_structure, Gprime_structure, components_list = self.tree_structure_search(x, h_prev)
         G_node = [] # containing the Node class instance
-        second_vectors = []
+        Gprime_node = []
 
         # Builds the tree from the bottom up
         for idx in range(len(G_structure)):
@@ -220,22 +220,46 @@ class RRNNforGRUCell(nn.Module):
             left_node.parent = node
             right_node.parent = node
 
-            # second_vectors.append()
-
             G_node.append(node)
             components_list_forward = [G_node[i] for i in range(len(G_node)) if G_node[i].parent is None]
 
-        # for idx in range(len(Gprime_structure))
+        # Do the same for the 2nd place vectors
+        for idx in range(len(Gprime_structure)):
+            left_name, right_name, k, binary_func, activation_func, name = Gprime_structure[idx]
+
+            L = self.L_list[k]
+            R = self.R_list[k]
+            b = self.b_list[k]
+
+            left_node = retrieve_node(left_name, x, h_prev, Gprime_node)
+            right_node = retrieve_node(right_name, x, h_prev, Gprime_node)
+            if binary_func == 'add':
+                result = (torch.mm(left_node.vector, L)
+                         + torch.mm(right_node.vector, R) + b)
+            elif binary_func == 'mul':
+                result = (torch.mm(left_node.vector, L)
+                         * torch.mm(right_node.vector, R) + b)
+            else:
+                raise ValueError('binary_func must be "add" or "mul"')
+
+            result = retrieve_activation_func(activation_func, result,
+                                              self.multiplier)
+
+            node = Node(result, name, structure=Gprime_structure[idx],
+                        left_child=left_node, right_child=right_node)
+            left_node.parent = node
+            right_node.parent = node
+            Gprime_node.append(node)
 
         G_forward = [node.vector for node in G_node]
         scores_list = [self.scoring(g) for g in G_forward]
         h_next = G_forward[-1]
 
-        # Gprime_forward = [node.vector for node in Gprime_node]
-        # second_scores_list = [self.scoring(g) for g in Gprime_forward]
+        Gprime_forward = [node.vector for node in Gprime_node]
+        second_scores_list = [self.scoring(g) for g in Gprime_forward]
 
         return (h_next, G_forward, G_structure, components_list_forward, G_node,
-                scores_list)#, second_scores_list)
+                scores_list, second_scores_list)
 
 
 class RRNNforGRU(nn.Module):
@@ -259,12 +283,13 @@ class RRNNforGRU(nn.Module):
 
         for t in range(time_steps):
             x_t = inputs[:, t, :].reshape(1, -1)
-            h_next, G_forward, G_structure, components_list_forward, G_node, scores_list = self.cell(x_t, h_next)
+            h_next, G_forward, G_structure, components_list_forward, G_node, scores_list, second_scores_list = self.cell(x_t, h_next)
             h_list.append(h_next)
             pred_tree_list.append(G_node)
             scores.append(scores_list)
 
-        return self.output_layer(h_next), h_list, pred_tree_list, scores_list
+        return (self.output_layer(h_next), h_list, pred_tree_list, scores_list,
+               second_scores_list)
 
 
 if __name__ == '__main__':
