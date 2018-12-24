@@ -17,19 +17,12 @@ from tree_methods import Node
 import tree_methods
 
 import numpy as np
-import time 
-
+import time
+import dataloader
 
 
 timer = time.time()
-import dataloader
-X_train, y_train = dataloader.load_data('train20.txt')
-tmp = torch.cat(X_train, dim=1).reshape(-1, 100).numpy()
-tmp_mean = np.mean(tmp, axis=0) 
-tmp_std = np.std(tmp, axis=0)
-for i in range(len(X_train)):
-    X_train[i] = (X_train[i]-torch.from_numpy(tmp_mean))/torch.from_numpy(tmp_std)
-
+X_train, y_train = dataloader.load_normalized_data('train20.txt')
 
 nb_epochs = 100
 
@@ -47,7 +40,7 @@ class GRUTagger(nn.Module):
         self.hidden = self.init_hidden()
 
     def init_hidden(self):
-        return torch.zeros(1, self.hidden_dim, requires_grad=True) 
+        return torch.zeros(1, self.hidden_dim, requires_grad=True)
 
     def forward(self, X):
 #        embeds = self.word_embeddings(sentence)
@@ -63,7 +56,7 @@ optimizer = torch.optim.Adam(model.parameters())
 
 loss = torch.nn.CrossEntropyLoss()
 #loss = torch.nn.KLDivLoss(size_average=False)
-    
+
 
 # todo
 # 还没有把gru的真实code放在loss function里面，现在算出来的loss还是不对的
@@ -78,20 +71,20 @@ for e in range(nb_epochs):
         target[0, np.argmax(y)] = 1
         # set to training mode
         model.train()
-        
+
          # zero gradient
         optimizer.zero_grad()
-        
+
         # forward pass and compute loss
         out = model(X)
 
         # compute gradient and take step in optimizer
         loss_fn = -(torch.log(out)*target).sum()
-        loss_fn.backward() 
+        loss_fn.backward()
 #        break
 
         optimizer.step()
-        
+
         loss_list.append(loss_fn.data.tolist())
         if len(loss_list) > 10000:
             loss_list = loss_list[-10000:]
@@ -101,6 +94,6 @@ for e in range(nb_epochs):
             file=open('gru_log.txt', 'a')
             file.write(str(np.mean(loss_list[-100:]))+'\n')
             file.close()
-            
+
 model.eval() # set to evaluation mode
 torch.save(model.gru, 'gru_parameters.pkl')

@@ -43,18 +43,18 @@ bz = b_iz + b_hz
 
 
 timer = time.time()
-X_train, y_train = dataloader.load_data('train20.txt')
+X_train, y_train = dataloader.load_normalized_data('train20.txt')
 X_train = X_train[:NB_DATA]
 
-# Normalize data. TODO: Make X_train a 4D tensor to begin with
-if NB_DATA > 1:
-    X_train_tensor = torch.empty((len(X_train),) + X_train[0].size())
-    for i, x in enumerate(X_train):
-        X_train_tensor[i, :, :, :] = X_train[i]
-    X_train_tensor -= torch.mean(X_train_tensor, dim=0)
-    X_train_tensor /= torch.std(X_train_tensor, dim=0)
-    for i in range(len(X_train)):
-        X_train[i] = X_train_tensor[i, :, :, :]
+# # Normalize data. TODO: Make X_train a 4D tensor to begin with
+# if NB_DATA > 1:
+#     X_train_tensor = torch.empty((len(X_train),) + X_train[0].size())
+#     for i, x in enumerate(X_train):
+#         X_train_tensor[i, :, :, :] = X_train[i]
+#     X_train_tensor -= torch.mean(X_train_tensor, dim=0)
+#     X_train_tensor /= torch.std(X_train_tensor, dim=0)
+#     for i in range(len(X_train)):
+#         X_train[i] = X_train_tensor[i, :, :, :]
 
 _hidden_size = 100
 _vocab_size = 27

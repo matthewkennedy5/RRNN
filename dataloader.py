@@ -6,7 +6,9 @@ Created on Thu Oct 25 02:16:41 2018
 """
 
 import torch
-from gensim.models import Word2Vec 
+from gensim.models import Word2Vec
+import numpy as np
+
 word2vec_model = Word2Vec.load('train20_embedding')
 
 element_dict = {'a':0,'b':1,'c':2,'d':3,'e':4,'f':5,'g':6,'h':7,'i':8,'j':9,'k':10
@@ -26,7 +28,7 @@ def load_data(filename):
                 word.append(word2vec_model['.'])
             else:
                 word.append(word2vec_model[input_word[j]])
-#            
+#
 #            element_vector = [0]*27
 #            element_vector[element_dict[input_word[j]]]=1
 #            word.append(element_vector)
@@ -38,6 +40,17 @@ def load_data(filename):
 #        y_train.append(torch.tensor([element_dict[input_word[-1]]]))
     file.close()
     return X_train, y_train
+
+
+def load_normalized_data(filename):
+    X_train, y_train = load_data(filename)
+    tmp = torch.cat(X_train, dim=1).reshape(-1, 100).numpy()
+    tmp_mean = np.mean(tmp, axis=0)
+    tmp_std = np.std(tmp, axis=0)
+    for i in range(len(X_train)):
+        X_train[i] = (X_train[i]-torch.from_numpy(tmp_mean))/torch.from_numpy(tmp_std)
+    return X_train, y_train
+
 
 if __name__ == '__main__':
     X_train, y_train = load_data('train20.txt')
