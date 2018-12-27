@@ -33,8 +33,6 @@ Adam optimizer
 Normalized X_train
 Didn't really train--I guess lamb2 didn't help things.
 
-================== TODO =====================
-
 3.
 Learning rate = 1e-4
 1000 iterations
@@ -42,6 +40,7 @@ lamb1 = 1
 lamb2 = 0
 lamb3 = 0
 lamb4 = 1
+Didn't train.
 
 4.
 Learning rate = 1e-4
@@ -50,4 +49,51 @@ lamb1 = 1
 lamb2 = 1
 lamb3 = 0
 lamb4 = 1
+
+5. Can it memorize 1 training example?
+Learning rate = 5e-4
+25 epochs of 1 data point
+lamb1 = 1
+lamb2 = 1
+lamb3 = 0
+lamb4 = 1
+
+I cancelled it early because of increasing loss.
+6. Same as 4 but with 25 epochs.
+Vector magnitudes >1 error. Trying again. Didn't train.
+
+7. Same as 5 but with lr=5e-5 and 200 epochs. (loss steadily increased with lr=1e-4). Gradients seem to be vanishing. Didn't train.
+
+Vector crashing:
+lr=1e-3, lamb3=0, lambk=1, NB_DATA=1, crashed after 26 epochs
+Unit std
+0.029 std
+
+8. Can it memorize 1 training example with no TDM loss?
+Same as 7 but with lamb1 = 1 and all other lambdas = 0.
+Kind of trained. Trying more epochs.
+
+9. Can the fixed code memorize 1 training example? (Similar to 5)
+Learning rate = 5e-4
+200 epochs of 1 data point
+lambdas same as 5
+This is after the commit fixing the issue where we didn't have multipliers
+before activation functions. "Added a getter method for the Node's ..."
+Vanishing gradients.
+
+10. Same as 9 but with the new loss2 (after the commit "Implemented the Gprime part")
+
+11. lamb1=1, all other lambdas=0, lr=1e-5, 1 data point, 1000 epochs
+
+12. Same as 11 but with lr=1e-4.
+
+13. Same as 11 but with lr=1e-3.
+
+14. Magic embeddings.
+lr=1e-4
+lamb1 = 1
+lamb2 = 1
+lamb3 = 0
+lamb4 = 1
+10 epochs of 100 data points.
 

@@ -298,6 +298,7 @@ if __name__ == '__main__':
     x = torch.randn(1, 5)
     hidden = torch.randn(1, 5)
     model = RRNNforGRUCell(5)
+    # TODO: Update to use torch.device rather than .cuda()
     if _cuda is True:
         x = x.cuda()
         hidden = hidden.cuda()

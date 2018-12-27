@@ -29,7 +29,7 @@ def load_data(filename, embeddings='gensim'):
         input_word = file.readline()[:-1]   # Word means a line of text
         word = []   # List of embedded character vectors for the line
         for j in range(len(input_word)-1):
-            if embeddings == 'word2vec':
+            if embeddings == 'gensim':
                 if input_word[j] == ' ':
                     word.append(word2vec_model['.'])
                 else:
