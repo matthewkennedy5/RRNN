@@ -20,18 +20,19 @@ import time
 from progressbar_utils import init_progress_bar
 import dataloader
 
-LOSS_FILE = 'loss3.pkl'
-SAVE_FILE = 'loss-plots/13.png'
+LOSS_FILE = 'loss.pkl'
+SAVE_FILE = 'loss-plots/structure.png'
 
 # Hyperparameters
 LEARNING_RATE = 1e-3
-lamb1 = 1   # Controls the loss for the output character
-lamb2 = 0   # Scoring loss
+lamb1 = 0   # Controls the loss for the output character
+lamb2 = 1   # Scoring loss
 lamb3 = 0   # L2 regularization loss
-lamb4 = 0   # Tree distance loss
-nb_epochs = 1000
-NB_DATA = 1
-EMBEDDINGS = 'magic'    # 'magic' or 'gensim'
+lamb4 = 1   # Tree distance loss
+nb_epochs = 200
+NB_DATA = 2
+EMBEDDINGS = 'gensim'    # 'magic' or 'gensim'
+MULTIPLIER = 1e-2
 
 # load pretrained GRU model
 gru_model = torch.load('gru_parameters.pkl').to(device)
@@ -50,7 +51,7 @@ X_train = X_train[:NB_DATA]
 _hidden_size = 100
 _vocab_size = 27
 
-model = RRNNforGRU(_hidden_size, _vocab_size)
+model = RRNNforGRU(_hidden_size, _vocab_size, MULTIPLIER)
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 #loss = torch.nn.CrossEntropyLoss()
 loss = torch.nn.KLDivLoss()
