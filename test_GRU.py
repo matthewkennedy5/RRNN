@@ -20,17 +20,18 @@ import time
 from progressbar_utils import init_progress_bar
 import dataloader
 
-LOSS_FILE = 'loss2.pkl'
-SAVE_FILE = 'loss-plots/crash.png'
+LOSS_FILE = 'loss3.pkl'
+SAVE_FILE = 'loss-plots/13.png'
 
 # Hyperparameters
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-3
 lamb1 = 1   # Controls the loss for the output character
-lamb2 = 1   # Scoring loss
+lamb2 = 0   # Scoring loss
 lamb3 = 0   # L2 regularization loss
-lamb4 = 1   # Tree distance loss
-nb_epochs = 200
-NB_DATA = 10
+lamb4 = 0   # Tree distance loss
+nb_epochs = 1000
+NB_DATA = 1
+EMBEDDINGS = 'magic'    # 'magic' or 'gensim'
 
 # load pretrained GRU model
 gru_model = torch.load('gru_parameters.pkl').to(device)
@@ -41,20 +42,10 @@ b_hr, b_hz, b_hn = gru_model.bias_hh_l0.chunk(3)
 br = b_ir + b_hr
 bz = b_iz + b_hz
 
-
 timer = time.time()
-X_train, y_train = dataloader.load_normalized_data('train20.txt')
+X_train, y_train = dataloader.load_normalized_data('train20.txt',
+                                                   embeddings=EMBEDDINGS)
 X_train = X_train[:NB_DATA]
-
-# # Normalize data. TODO: Make X_train a 4D tensor to begin with
-# if NB_DATA > 1:
-#     X_train_tensor = torch.empty((len(X_train),) + X_train[0].size())
-#     for i, x in enumerate(X_train):
-#         X_train_tensor[i, :, :, :] = X_train[i]
-#     X_train_tensor -= torch.mean(X_train_tensor, dim=0)
-#     X_train_tensor /= torch.std(X_train_tensor, dim=0)
-#     for i in range(len(X_train)):
-#         X_train[i] = X_train_tensor[i, :, :, :]
 
 _hidden_size = 100
 _vocab_size = 27
@@ -85,7 +76,7 @@ for e in range(nb_epochs):
         optimizer.zero_grad()
 
         # forward pass and compute loss
-        out, h_list, pred_tree_list, scores = model(X)
+        out, h_list, pred_tree_list, scores, second_scores = model(X)
 
         # forward pass of traditional GRU
         gru_h_list = gru_model(X)[0].to(device)
@@ -111,7 +102,7 @@ for e in range(nb_epochs):
         # the correct vectors.
         loss2 = 0
         if lamb2 != 0:
-            loss2 = -np.sum(scores)
+            loss2 = -np.sum(scores) + np.sum(second_scores)
 
         loss3 = 0
         if lamb3 != 0:
