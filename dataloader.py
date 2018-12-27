@@ -36,6 +36,8 @@ def load_data(filename, embeddings='gensim'):
                     word.append(word2vec_model[input_word[j]])
             elif embeddings == 'magic':
                 word.append(magic_embeddings[input_word[j]])
+            else:
+                raise ValueError('embeddings must be either "word2vec" or "magic"')
 #
 #            element_vector = [0]*27
 #            element_vector[element_dict[input_word[j]]]=1
