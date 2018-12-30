@@ -49,9 +49,9 @@ def retrieve_activation_func(string, vec, multiplier):
     elif string == 'sigmoid':
         return multiplier * torch.sigmoid(vec)
     elif string == 'minus':
-        return multiplier * (1-vec)
+        return 1-vec
     elif string == 'identity':
-        return multiplier * vec
+        return vec
     else:
         raise ValueError
 
@@ -84,16 +84,16 @@ class RRNNforGRUCell(nn.Module):
         self.scoring = nn.Linear(hidden_size, 1, bias=False)
 
     def tree_structure_search(self, x, h_prev):
-        '''
-            This is the "fake" forward process.
-            Inputs:
-                x: $x_t$ in the formulation of GRU, dimension: 1 * hidden_size
-                h_prev: $h_{t-1}$ in the formulation of GRU, dimension: 1 * hidden_size
-            Outputs:
-                G:
-                G_structure:
-                components_list:
-        '''
+        """
+        This is the "fake" forward process.
+        Inputs:
+            x: $x_t$ in the formulation of GRU, dimension: 1 * hidden_size
+            h_prev: $h_{t-1}$ in the formulation of GRU, dimension: 1 * hidden_size
+        Outputs:
+            G:
+            G_structure:
+            components_list:
+        """
         components_list = [] # explain on video chat
         G = []  # vectors of nodes in each cell
         G_structure = []    # corresponding structure
@@ -290,6 +290,7 @@ class RRNNforGRU(nn.Module):
             pred_tree_list.append(G_node)
             scores.append(scores_list)
 
+        # print(G_structure)
         return (self.output_layer(h_next), h_list, pred_tree_list, scores_list,
                second_scores_list)
 
