@@ -146,9 +146,9 @@ class RRNNforGRUCell(nn.Module):
                                     V_structure.append([i, j, k, binary_func, 'sigmoid'])
                                     V_r.append(self.multiplier * torch.tanh(res))
                                     V_structure.append([i, j, k, binary_func, 'tanh'])
-                                    V_r.append(self.multiplier * (1-res))
+                                    V_r.append(1-res)
                                     V_structure.append([i, j, k, binary_func, 'minus'])
-                                    V_r.append(self.multiplier * res)
+                                    V_r.append(res)
                                     V_structure.append([i, j, k, binary_func, 'identity'])
 
             scores_list = [self.scoring(v).item() for v in V_r] # calculate the scores for each vector
