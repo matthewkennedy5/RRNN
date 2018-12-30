@@ -21,7 +21,7 @@ from progressbar_utils import init_progress_bar
 import dataloader
 
 LOSS_FILE = 'loss.pkl'
-SAVE_FILE = 'loss-plots/structure.png'
+SAVE_FILE = 'loss-plots/profile.png'
 
 # Hyperparameters
 LEARNING_RATE = 1e-3
@@ -29,10 +29,10 @@ lamb1 = 0   # Controls the loss for the output character
 lamb2 = 1   # Scoring loss
 lamb3 = 0   # L2 regularization loss
 lamb4 = 1   # Tree distance loss
-nb_epochs = 200
-NB_DATA = 2
+nb_epochs = 50
+NB_DATA = 1  # Max is 5000
 EMBEDDINGS = 'gensim'    # 'magic' or 'gensim'
-MULTIPLIER = 1e-2
+MULTIPLIER = 1e-3
 
 # load pretrained GRU model
 gru_model = torch.load('gru_parameters.pkl').to(device)
