@@ -5,6 +5,7 @@ import tree_methods
 from progressbar_utils import init_progress_bar
 import dataloader
 from GRU import RRNNforGRU
+from structure_utils import structures_are_equal, GRU_STRUCTURE
 
 
 VOCAB_SIZE = 27
@@ -43,6 +44,7 @@ class RRNNTrainer:
         """
         iterations = epochs * len(self.X_train)
         loss_history = np.zeros(iterations)
+        gru_count = 0
         if verbose:
             bar = init_progress_bar(iterations)
             bar.start()
@@ -101,6 +103,9 @@ class RRNNTrainer:
                 loss_fn.backward()
                 self.optimizer.step()
 
+                if structures_are_equal(structure, GRU_STRUCTURE):
+                    gru_count += 1
+
                 iteration = epoch * len(self.X_train) + i
                 loss_history[iteration] = loss_fn.item()
                 if verbose:
@@ -109,7 +114,8 @@ class RRNNTrainer:
         if verbose:
             bar.finish()
         model.eval()
-        return loss_history, structure
+        return loss_history, gru_count
+
 
 
 def random_params():
@@ -125,7 +131,12 @@ def random_params():
     return params
 
 
+NB_DATA = 250
+
 if __name__ == '__main__':
+
+    max_gru_count = 0
+    best_params = None
 
     while True:
         print('='*80)
@@ -141,16 +152,19 @@ if __name__ == '__main__':
             X_train[i] = torch.tensor(X_train[i], device=device)
             y_train[i] = torch.tensor(y_train[i], device=device)
 
-        trainer = RRNNTrainer(model, gru_model, X_train[:250], y_train[:250], optimizer,
-                              params['lambdas'])
+        trainer = RRNNTrainer(model, gru_model, X_train[:NB_DATA], y_train[:NB_DATA],
+                              optimizer, params['lambdas'])
         try:
-            loss, structure = trainer.train(1, verbose=False)
+            loss, gru_count = trainer.train(1, verbose=False)
         except ValueError:
             print('ValueError')
-            structure = []
+            gru_count = -1
 
         print('Hyperparameters:')
         print(params)
-        print('\nStructure:')
-        print(structure)
+        print('\nAchieved the GRU structure on %d iterations.\n' % (gru_count,))
+        if gru_count > max_gru_count:
+            best_params = params
+        print('Best hyperparameters so far:')
+        print(best_params)
         print(flush=True)
