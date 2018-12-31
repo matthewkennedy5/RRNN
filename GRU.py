@@ -290,9 +290,8 @@ class RRNNforGRU(nn.Module):
             pred_tree_list.append(G_node)
             scores.append(scores_list)
 
-        # print(G_structure)
         return (self.output_layer(h_next), h_list, pred_tree_list, scores_list,
-               second_scores_list)
+               second_scores_list, G_structure)
 
 
 if __name__ == '__main__':
