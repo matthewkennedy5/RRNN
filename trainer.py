@@ -106,6 +106,8 @@ class RRNNTrainer:
                 if verbose:
                     bar.update(iteration + 1)
 
+        if verbose:
+            bar.finish()
         model.eval()
         return loss_history, structure
 
@@ -126,6 +128,8 @@ def random_params():
 if __name__ == '__main__':
 
     while True:
+        print('='*80)
+        print('\n[INFO] Beginning run.\n')
         params = random_params()
 
         gru_model = torch.load('gru_parameters.pkl')
@@ -137,7 +141,7 @@ if __name__ == '__main__':
             X_train[i] = torch.tensor(X_train[i], device=device)
             y_train[i] = torch.tensor(y_train[i], device=device)
 
-        trainer = RRNNTrainer(model, gru_model, X_train[:2], y_train[:2], optimizer,
+        trainer = RRNNTrainer(model, gru_model, X_train[:250], y_train[:250], optimizer,
                               params['lambdas'])
         try:
             loss, structure = trainer.train(1, verbose=False)
@@ -149,6 +153,4 @@ if __name__ == '__main__':
         print(params)
         print('\nStructure:')
         print(structure)
-        print()
-        print('='*80)
-        print('\n[INFO] Beginning run.\n')
+        print(flush=True)
