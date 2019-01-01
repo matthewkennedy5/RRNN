@@ -1,3 +1,4 @@
+
 LEFT_NAME = 0
 RIGHT_NAME = 1
 K = 2
@@ -18,6 +19,11 @@ GRU_STRUCTURE = [['x', 'h', 0, 'add', 'sigmoid', 'z1'],
 
 
 class TreeNode:
+    """Simple class to store nodes of a structure tree.
+
+    A structure tree just describes the structure of the update equations, and
+    doesn't record vector information.
+    """
 
     def __init__(self):
         self.left = None
@@ -28,6 +34,14 @@ class TreeNode:
         self.name = None
 
     def __eq__(self, tree2):
+        """Returns True if the two trees have the same basic attributes.
+
+        These attributes are children, name, binary function, and activation
+        function.
+
+        Input:
+            tree2 - The tree to compare equality with
+        """
         return (self.left == tree2.left and self.right == tree2.right and
                     self.name == tree2.name and self.binary_func == tree2.binary_func and
                         self.activation == tree2.activation)
@@ -37,6 +51,10 @@ class TreeNode:
 
 
 def leaf_nodes():
+    """Returns a dict of the basic leaf vectors that can be used by the equations.
+
+    Here they are x, h, and the zero vector.
+    """
     x = TreeNode()
     x.name = 'x'
     h = TreeNode()
@@ -47,6 +65,16 @@ def leaf_nodes():
 
 
 def structure2tree(structure):
+    """Returns the tree representation of the given structure.
+
+    Input:
+        structure - List of nodes, where each node is a list of
+            [leftname, rightname, k, binary_func, activation, name]. Child nodes
+            must appear before their parents.
+
+    Returns:
+        node - TreeNode of the root of the structure tree.
+    """
     nodes = leaf_nodes()
     for n in structure:
         node = TreeNode()
@@ -66,6 +94,7 @@ def structure2tree(structure):
 
 
 def trees_are_isomorphic(tree1, tree2):
+    """Returns True if the two trees are isomorphic."""
     if tree1 is None:
         return tree2 is None
     if tree2 is None:
