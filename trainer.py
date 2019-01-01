@@ -1,3 +1,4 @@
+import time
 import torch
 import numpy as np
 
@@ -132,13 +133,16 @@ def random_params():
 
 
 NB_DATA = 250
+RUNTIME = 2 * 24 * 60 * 60
 
 if __name__ == '__main__':
 
     max_gru_count = 0
     best_params = None
 
-    while True:
+    start = time.time()
+
+    while (time.time() - start) < RUNTIME:
         print('='*80)
         print('\n[INFO] Beginning run.\n')
         params = random_params()
