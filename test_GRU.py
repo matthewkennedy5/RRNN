@@ -24,15 +24,15 @@ LOSS_FILE = 'loss.pkl'
 SAVE_FILE = 'loss-plots/profile.png'
 
 # Hyperparameters
-LEARNING_RATE = 1e-3
-lamb1 = 0   # Controls the loss for the output character
-lamb2 = 1   # Scoring loss
+LEARNING_RATE = 0.0001202
+lamb1 = 1.089   # Controls the loss for the output character
+lamb2 = 1.428   # Scoring loss
 lamb3 = 0   # L2 regularization loss
-lamb4 = 1   # Tree distance loss
-nb_epochs = 50
-NB_DATA = 1  # Max is 5000
+lamb4 = 0.05719   # Tree distance loss
+nb_epochs = 1
+NB_DATA = 250  # Max is 5000
 EMBEDDINGS = 'gensim'    # 'magic' or 'gensim'
-MULTIPLIER = 1e-3
+MULTIPLIER = 2.395e-4
 
 # load pretrained GRU model
 gru_model = torch.load('gru_parameters.pkl').to(device)
@@ -77,7 +77,7 @@ for e in range(nb_epochs):
         optimizer.zero_grad()
 
         # forward pass and compute loss
-        out, h_list, pred_tree_list, scores, second_scores = model(X)
+        out, h_list, pred_tree_list, scores, second_scores, structure = model(X)
 
         # forward pass of traditional GRU
         gru_h_list = gru_model(X)[0].to(device)
