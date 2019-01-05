@@ -118,7 +118,6 @@ class RRNNTrainer:
         return loss_history, gru_count
 
 
-
 def random_params():
     params = {}
     params['learning_rate'] = 10 ** np.random.uniform(-5, -2)
@@ -137,6 +136,8 @@ RUNTIME = 2 * 24 * 60 * 60
 
 if __name__ == '__main__':
 
+    ### Random hyperparameter search ###
+
     max_gru_count = 0
     best_params = None
 
@@ -153,7 +154,7 @@ if __name__ == '__main__':
         X_train, y_train = dataloader.load_normalized_data('train20.txt',
                                                            embeddings='gensim')
         for i in range(len(X_train)):
-            X_train[i] = torch.tensor(X_train[i], device=device)
+            X_train[i] = X_train[i].to(device)
             y_train[i] = torch.tensor(y_train[i], device=device)
 
         trainer = RRNNTrainer(model, gru_model, X_train[:NB_DATA], y_train[:NB_DATA],
