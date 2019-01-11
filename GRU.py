@@ -68,6 +68,7 @@ def retrieve_binary_func(string, vec1, vec2):
 
 
 class RRNNforGRUCell(nn.Module):
+
     def __init__(self, hidden_size, multiplier=DEFAULT_MULTIPLIER):
         super(RRNNforGRUCell, self).__init__()
         self.multiplier = multiplier    # multiplier for the activation functions and initialization
@@ -98,6 +99,7 @@ class RRNNforGRUCell(nn.Module):
         G = []  # vectors of nodes in each cell
         G_structure = []    # corresponding structure
         Gprime_structure = []
+        second_vectors = []
 
         for r in range(self.N):
             candidate = [x, h_prev, torch.zeros(1, self.hidden_size, device=device)] + [comp.vector for comp in components_list]
@@ -105,19 +107,20 @@ class RRNNforGRUCell(nn.Module):
             V_structure = []    # contains the structure of each vector in V_r
             self.V_r = V_r
             self.V_structure = V_structure
-            number_of_remaining_iters = self.N - r  # use this number to decide if you can only merge two existing components, not increasing the number of components, or do whatever you want
+            number_of_remaining_iters = self.N - r  # use this number to decide if you can only merge two existing components,
+                                                    # not increase the number of components, or do whatever you want
             # starting the inner loop
             for i in range(len(candidate)-1):
                 for j in range(i+1, len(candidate)):
                     # i will explain this part to you on video chat.
                     flag = 0
-                    if number_of_remaining_iters == len(components_list) - 1: # 只能 merge two components
+                    if number_of_remaining_iters == len(components_list) - 1: # You could only merge two components
                         if i >= 3:
                             flag = 1
-                    elif number_of_remaining_iters == len(components_list): # 可以 merge 或者不增加components
+                    elif number_of_remaining_iters == len(components_list): # could merge or keep # components to be the same
                         if j >= 3:
                             flag = 1
-                    elif number_of_remaining_iters > len(components_list):  # 可以做任意操作
+                    elif number_of_remaining_iters > len(components_list):  # whatever you want
                         flag = 1
                     else:
                         raise ValueError
@@ -136,7 +139,8 @@ class RRNNforGRUCell(nn.Module):
                                     res = torch.mm(s_i, L) + torch.mm(s_j, R) + b
                                 else:   # elif binary_func == 'mul':
                                     res = torch.mm(s_i, L) * torch.mm(s_j, R) + b
-                                if res.abs().max() >= 1:    # if the maximum entry of the vector is larger than 1, we could not use 1-x or x as the unary function, thus we can keep the entries within [-1, 1]
+                                if res.abs().max() >= 1:    # if the maximum entry of the vector is larger than 1, we could not use 1-x
+                                                            # or x as the unary function, thus we can keep the entries within [-1, 1]
                                     V_r.append(self.multiplier*torch.sigmoid(res))
                                     V_structure.append([i, j, k, binary_func, 'sigmoid'])
                                     V_r.append(self.multiplier*torch.tanh(res))
@@ -160,7 +164,7 @@ class RRNNforGRUCell(nn.Module):
             # in the calculation of loss2
             second_index = np.where(np.argsort(scores_list) == 1)[0][0]
             second_vector = V_r[second_index]
-            second_structure = V_structure[second_index]
+            # second_structure = V_structure[second_index]
 
             # merge components
             i = max_structure[0]
@@ -194,7 +198,21 @@ class RRNNforGRUCell(nn.Module):
                 components_list.append(new_component)
                 G.append(max_vector)
                 G_structure.append([left_node.name, right_node.name] + max_structure[2:] + ['G%d'%r])
-            Gprime_structure.append([left_node.name, right_node.name] + second_structure[2:] + ['G%d' % r])
+
+            # # Repeating with the 2nd place vector -- TODO: Make this a method so it's not repeated
+            # i = second_structure[0]
+            # j = second_structure[1]
+            # if i > 2 and j > 2:
+            #     left_node = components_list[i-3]
+            #     right_node = components_list[j-3]
+            # elif i <= 2 and j > 2:
+            #     left_node = Node(candidate[i], name_list[i])
+            #     right_node = components_list[j-3]
+            # else:
+            #     left_node = Node(candidate[i], name_list[i])
+            #     right_node = Node(candidate[i], name_list[j])
+            # Gprime_structure.append([left_node.name, right_node.name] + second_structure[2:] + ['G%d' % r])
+
         scores_list = [self.scoring(g) for g in G]
         return G, G_structure, Gprime_structure, components_list
 
@@ -216,6 +234,7 @@ class RRNNforGRUCell(nn.Module):
                 res = torch.mm(left_node.vector, L) + torch.mm(right_node.vector, R) + b
             else:   # elif binary_func == 'mul':
                 res = torch.mm(left_node.vector, L) * torch.mm(right_node.vector, R) + b
+
             res = retrieve_activation_func(activation_func, res, self.multiplier)
 
             node = Node(res, name, structure=G_structure[idx], left_child=left_node, right_child=right_node)
@@ -225,40 +244,40 @@ class RRNNforGRUCell(nn.Module):
             G_node.append(node)
             components_list_forward = [G_node[i] for i in range(len(G_node)) if G_node[i].parent is None]
 
-        # Do the same for the 2nd place vectors
-        for idx in range(len(Gprime_structure)):
-            left_name, right_name, k, binary_func, activation_func, name = Gprime_structure[idx]
+        # # Do the same for the 2nd place vectors
+        # for idx in range(len(Gprime_structure)):
+        #     left_name, right_name, k, binary_func, activation_func, name = Gprime_structure[idx]
 
-            L = self.L_list[k]
-            R = self.R_list[k]
-            b = self.b_list[k]
+        #     L = self.L_list[k]
+        #     R = self.R_list[k]
+        #     b = self.b_list[k]
 
-            left_node = retrieve_node(left_name, x, h_prev, Gprime_node)
-            right_node = retrieve_node(right_name, x, h_prev, Gprime_node)
-            if binary_func == 'add':
-                result = (torch.mm(left_node.vector, L)
-                         + torch.mm(right_node.vector, R) + b)
-            elif binary_func == 'mul':
-                result = (torch.mm(left_node.vector, L)
-                         * torch.mm(right_node.vector, R) + b)
-            else:
-                raise ValueError('binary_func must be "add" or "mul"')
+        #     left_node = retrieve_node(left_name, x, h_prev, Gprime_node)
+        #     right_node = retrieve_node(right_name, x, h_prev, Gprime_node)
+        #     if binary_func == 'add':
+        #         result = (torch.mm(left_node.vector, L)
+        #                  + torch.mm(right_node.vector, R) + b)
+        #     elif binary_func == 'mul':
+        #         result = (torch.mm(left_node.vector, L)
+        #                  * torch.mm(right_node.vector, R) + b)
+        #     else:
+        #         raise ValueError('binary_func must be "add" or "mul"')
 
-            result = retrieve_activation_func(activation_func, result,
-                                              self.multiplier)
+        #     result = retrieve_activation_func(activation_func, result,
+        #                                       self.multiplier)
 
-            node = Node(result, name, structure=Gprime_structure[idx],
-                        left_child=left_node, right_child=right_node)
-            left_node.parent = node
-            right_node.parent = node
-            Gprime_node.append(node)
+        #     node = Node(result, name, structure=Gprime_structure[idx],
+        #                 left_child=left_node, right_child=right_node)
+        #     left_node.parent = node
+        #     right_node.parent = node
+        #     Gprime_node.append(node)
 
         G_forward = [node.vector for node in G_node]
         scores_list = [self.scoring(g) for g in G_forward]
         h_next = G_forward[-1]
 
-        Gprime_forward = [node.vector for node in Gprime_node]
-        second_scores_list = [self.scoring(g) for g in Gprime_forward]
+        # Gprime_forward = [node.vector for node in Gprime_node]
+        # second_scores_list = [self.scoring(g) for g in Gprime_forward]
 
         return (h_next, G_forward, G_structure, components_list_forward, G_node,
                 scores_list, second_scores_list)

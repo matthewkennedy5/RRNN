@@ -176,6 +176,7 @@ def tree_distance_metric_list(pred_tree, target_tree, order=True, samples=10, de
             for i in range(len(indicator_string)):  # 交换左右子树
                 if indicator_string[i] == '1':
                     node = new_target_tree[i]
+                    # Swap the left and right child
                     tmp = node.leftchild
                     node.leftchild = node.rightchild
                     node.rightchild = tmp
@@ -188,5 +189,4 @@ def tree_distance_metric_list(pred_tree, target_tree, order=True, samples=10, de
                 res += min(tmp_list)
             res_list.append(res)
         return torch.tensor(min(res_list)/len(pred_tree), device=device)
-
 

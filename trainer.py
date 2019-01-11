@@ -121,17 +121,17 @@ class RRNNTrainer:
 def random_params():
     params = {}
     params['learning_rate'] = 10 ** np.random.uniform(-5, -2)
-    params['multiplier'] = 10 ** np.random.uniform(-4, 0)
-    lamb1 = 10 ** np.random.uniform(-3, 1)
+    params['multiplier'] = 10 ** np.random.uniform(-6, -2)
+    lamb1 = 1 #10 ** np.random.uniform(-3, 1)
     lamb2 = 10 ** np.random.uniform(-3, 1)
     # lamb3 = 10 ** np.random.uniform(-3, 1)
     lamb3 = 0   # L2 regularization off for now
-    lamb4 = 10 ** np.random.uniform(-3, 1)
+    lamb4 = 10 ** np.random.uniform(-1, 3)
     params['lambdas'] = (lamb1, lamb2, lamb3, lamb4)
     return params
 
 
-NB_DATA = 250
+NB_DATA = 50
 RUNTIME = 2 * 24 * 60 * 60
 
 if __name__ == '__main__':
@@ -160,7 +160,7 @@ if __name__ == '__main__':
         trainer = RRNNTrainer(model, gru_model, X_train[:NB_DATA], y_train[:NB_DATA],
                               optimizer, params['lambdas'])
         try:
-            loss, gru_count = trainer.train(1, verbose=False)
+            loss, gru_count = trainer.train(1, verbose=True)
         except ValueError:
             print('ValueError')
             gru_count = -1

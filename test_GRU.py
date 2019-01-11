@@ -43,6 +43,8 @@ b_hr, b_hz, b_hn = gru_model.bias_hh_l0.chunk(3)
 br = b_ir + b_hr
 bz = b_iz + b_hz
 
+torch.manual_seed(123)
+
 timer = time.time()
 X_train, y_train = dataloader.load_normalized_data('train20.txt',
                                                    embeddings=EMBEDDINGS)
