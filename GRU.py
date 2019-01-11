@@ -98,7 +98,7 @@ class RRNNforGRUCell(nn.Module):
         components_list = [] # explain on video chat
         G = []  # vectors of nodes in each cell
         G_structure = []    # corresponding structure
-        Gprime_structure = []
+        # Gprime_structure = []
         second_vectors = []
 
         for r in range(self.N):
@@ -164,7 +164,7 @@ class RRNNforGRUCell(nn.Module):
             # in the calculation of loss2
             second_index = np.where(np.argsort(scores_list) == 1)[0][0]
             second_vector = V_r[second_index]
-            # second_structure = V_structure[second_index]
+            second_vectors.append(second_vector)
 
             # merge components
             i = max_structure[0]
@@ -199,25 +199,11 @@ class RRNNforGRUCell(nn.Module):
                 G.append(max_vector)
                 G_structure.append([left_node.name, right_node.name] + max_structure[2:] + ['G%d'%r])
 
-            # # Repeating with the 2nd place vector -- TODO: Make this a method so it's not repeated
-            # i = second_structure[0]
-            # j = second_structure[1]
-            # if i > 2 and j > 2:
-            #     left_node = components_list[i-3]
-            #     right_node = components_list[j-3]
-            # elif i <= 2 and j > 2:
-            #     left_node = Node(candidate[i], name_list[i])
-            #     right_node = components_list[j-3]
-            # else:
-            #     left_node = Node(candidate[i], name_list[i])
-            #     right_node = Node(candidate[i], name_list[j])
-            # Gprime_structure.append([left_node.name, right_node.name] + second_structure[2:] + ['G%d' % r])
-
         scores_list = [self.scoring(g) for g in G]
-        return G, G_structure, Gprime_structure, components_list
+        return G, G_structure, second_vectors, components_list
 
     def forward(self, x, h_prev):
-        G, G_structure, Gprime_structure, components_list = self.tree_structure_search(x, h_prev)
+        G, G_structure, second_vectors, components_list = self.tree_structure_search(x, h_prev)
         G_node = [] # containing the Node class instance
         Gprime_node = []
 
@@ -244,41 +230,11 @@ class RRNNforGRUCell(nn.Module):
             G_node.append(node)
             components_list_forward = [G_node[i] for i in range(len(G_node)) if G_node[i].parent is None]
 
-        # # Do the same for the 2nd place vectors
-        # for idx in range(len(Gprime_structure)):
-        #     left_name, right_name, k, binary_func, activation_func, name = Gprime_structure[idx]
-
-        #     L = self.L_list[k]
-        #     R = self.R_list[k]
-        #     b = self.b_list[k]
-
-        #     left_node = retrieve_node(left_name, x, h_prev, Gprime_node)
-        #     right_node = retrieve_node(right_name, x, h_prev, Gprime_node)
-        #     if binary_func == 'add':
-        #         result = (torch.mm(left_node.vector, L)
-        #                  + torch.mm(right_node.vector, R) + b)
-        #     elif binary_func == 'mul':
-        #         result = (torch.mm(left_node.vector, L)
-        #                  * torch.mm(right_node.vector, R) + b)
-        #     else:
-        #         raise ValueError('binary_func must be "add" or "mul"')
-
-        #     result = retrieve_activation_func(activation_func, result,
-        #                                       self.multiplier)
-
-        #     node = Node(result, name, structure=Gprime_structure[idx],
-        #                 left_child=left_node, right_child=right_node)
-        #     left_node.parent = node
-        #     right_node.parent = node
-        #     Gprime_node.append(node)
-
         G_forward = [node.vector for node in G_node]
         scores_list = [self.scoring(g) for g in G_forward]
         h_next = G_forward[-1]
 
-        # Gprime_forward = [node.vector for node in Gprime_node]
-        # second_scores_list = [self.scoring(g) for g in Gprime_forward]
-
+        second_scores_list = [self.scoring(v) for v in second_vectors]
         return (h_next, G_forward, G_structure, components_list_forward, G_node,
                 scores_list, second_scores_list)
 
