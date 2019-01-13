@@ -79,7 +79,6 @@ class RRNNTrainer:
                 # calculate loss function
                 loss1 = 0
                 if self.lamb1 != 0:
-                    import pdb; pdb.set_trace
                     loss1 = self.loss(out, y.reshape(1,27).float())
 
                 # loss2 is the negative sum of the scores (alpha) of the vector
@@ -104,10 +103,11 @@ class RRNNTrainer:
                 loss_fn.backward()
                 self.optimizer.step()
 
+                iteration = epoch * len(self.X_train) + i
                 if structures_are_equal(structure, GRU_STRUCTURE):
+                    print('Achieved the GRU structure on iteration', iteration)
                     gru_count += 1
 
-                iteration = epoch * len(self.X_train) + i
                 loss_history[iteration] = loss_fn.item()
                 if verbose:
                     bar.update(iteration + 1)
@@ -122,7 +122,7 @@ def random_params():
     params = {}
     params['learning_rate'] = 10 ** np.random.uniform(-5, -2)
     params['multiplier'] = 10 ** np.random.uniform(-6, -2)
-    lamb1 = 1 #10 ** np.random.uniform(-3, 1)
+    lamb1 = 1
     lamb2 = 10 ** np.random.uniform(-3, 1)
     # lamb3 = 10 ** np.random.uniform(-3, 1)
     lamb3 = 0   # L2 regularization off for now
@@ -131,8 +131,9 @@ def random_params():
     return params
 
 
-NB_DATA = 50
-RUNTIME = 2 * 24 * 60 * 60
+NB_DATA = 5000
+EPOCHS = 20
+# RUNTIME = 5 * 24 * 60 * 60
 
 if __name__ == '__main__':
 
@@ -143,33 +144,38 @@ if __name__ == '__main__':
 
     start = time.time()
 
-    while (time.time() - start) < RUNTIME:
-        print('='*80)
-        print('\n[INFO] Beginning run.\n')
-        params = random_params()
+    # while (time.time() - start) < RUNTIME:
+    print('='*80)
+    print('\n[INFO] Beginning run.\n')
+    # params = random_params()
+    params = {
+        'learning_rate': 1e-4,
+        'multiplier': 1e-4,
+        'lambdas': (1, 1e-2, 0, 50)
+    }
 
-        gru_model = torch.load('gru_parameters.pkl')
-        model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['multiplier'])
-        optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
-        X_train, y_train = dataloader.load_normalized_data('train20.txt',
-                                                           embeddings='gensim')
-        for i in range(len(X_train)):
-            X_train[i] = X_train[i].to(device)
-            y_train[i] = torch.tensor(y_train[i], device=device)
+    gru_model = torch.load('gru_parameters.pkl')
+    model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['multiplier'])
+    optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
+    X_train, y_train = dataloader.load_normalized_data('train20.txt',
+                                                       embeddings='gensim')
+    for i in range(len(X_train)):
+        X_train[i] = X_train[i].to(device)
+        y_train[i] = torch.tensor(y_train[i], device=device)
 
-        trainer = RRNNTrainer(model, gru_model, X_train[:NB_DATA], y_train[:NB_DATA],
-                              optimizer, params['lambdas'])
-        try:
-            loss, gru_count = trainer.train(1, verbose=True)
-        except ValueError:
-            print('ValueError')
-            gru_count = -1
+    trainer = RRNNTrainer(model, gru_model, X_train[:NB_DATA], y_train[:NB_DATA],
+                          optimizer, params['lambdas'])
+    try:
+        loss, gru_count = trainer.train(EPOCHS, verbose=True)
+    except ValueError:
+        print('ValueError')
+        gru_count = -1
 
-        print('Hyperparameters:')
-        print(params)
-        print('\nAchieved the GRU structure on %d iterations.\n' % (gru_count,))
-        if gru_count > max_gru_count:
-            best_params = params
-        print('Best hyperparameters so far:')
-        print(best_params)
-        print(flush=True)
+    print('Hyperparameters:')
+    print(params)
+    print('\nAchieved the GRU structure on %d iterations.\n' % (gru_count,))
+    if gru_count > max_gru_count:
+        best_params = params
+    print('Best hyperparameters so far:')
+    print(best_params)
+    print(flush=True)
