@@ -7,7 +7,8 @@ from progressbar_utils import init_progress_bar
 import dataloader
 from GRU import RRNNforGRU
 from structure_utils import structures_are_equal, GRU_STRUCTURE
-
+import pickle
+# 1106
 
 VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
@@ -44,15 +45,15 @@ class RRNNTrainer:
             structure - The final structure of the RRNN tree.
         """
         iterations = epochs * len(self.X_train)
-        loss_history = np.zeros(iterations)
+        loss_history = np.zeros([iterations, 4])  # Columns are loss1, loss2, etc.
         gru_count = 0
         if verbose:
             bar = init_progress_bar(iterations)
             bar.start()
         for epoch in range(epochs):
             for i in range(len(self.X_train)):
-                X = X_train[i]
-                y = y_train[i]
+                X = self.X_train[i]
+                y = self.y_train[i]
                 # set to training mode
                 self.model.train()
 
@@ -108,74 +109,14 @@ class RRNNTrainer:
                     print('Achieved the GRU structure on iteration', iteration)
                     gru_count += 1
 
-                loss_history[iteration] = loss_fn.item()
+                loss_history[iteration, :] = [self.lamb1*loss1, self.lamb2*loss2,
+                                              self.lamb3*loss3, self.lamb4*loss4]
                 if verbose:
                     bar.update(iteration + 1)
 
         if verbose:
             bar.finish()
-        model.eval()
+        self.model.eval()
         return loss_history, gru_count
 
 
-def random_params():
-    params = {}
-    params['learning_rate'] = 10 ** np.random.uniform(-5, -2)
-    params['multiplier'] = 10 ** np.random.uniform(-6, -2)
-    lamb1 = 1
-    lamb2 = 10 ** np.random.uniform(-3, 1)
-    # lamb3 = 10 ** np.random.uniform(-3, 1)
-    lamb3 = 0   # L2 regularization off for now
-    lamb4 = 10 ** np.random.uniform(-1, 3)
-    params['lambdas'] = (lamb1, lamb2, lamb3, lamb4)
-    return params
-
-
-NB_DATA = 5000
-EPOCHS = 20
-# RUNTIME = 5 * 24 * 60 * 60
-
-if __name__ == '__main__':
-
-    ### Random hyperparameter search ###
-
-    max_gru_count = 0
-    best_params = None
-
-    start = time.time()
-
-    # while (time.time() - start) < RUNTIME:
-    print('='*80)
-    print('\n[INFO] Beginning run.\n')
-    # params = random_params()
-    params = {
-        'learning_rate': 1e-4,
-        'multiplier': 1e-4,
-        'lambdas': (1, 1e-2, 0, 50)
-    }
-
-    gru_model = torch.load('gru_parameters.pkl')
-    model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['multiplier'])
-    optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
-    X_train, y_train = dataloader.load_normalized_data('train20.txt',
-                                                       embeddings='gensim')
-    for i in range(len(X_train)):
-        X_train[i] = X_train[i].to(device)
-        y_train[i] = torch.tensor(y_train[i], device=device)
-
-    trainer = RRNNTrainer(model, gru_model, X_train[:NB_DATA], y_train[:NB_DATA],
-                          optimizer, params['lambdas'])
-    try:
-        loss, gru_count = trainer.train(EPOCHS, verbose=True)
-    except ValueError:
-        print('ValueError')
-        gru_count = -1
-
-    print('Hyperparameters:')
-    print(params)
-    print('\nAchieved the GRU structure on %d iterations.\n' % (gru_count,))
-    if gru_count > max_gru_count:
-        best_params = params
-    print('Best hyperparameters so far:')
-    print(best_params)
-    print(flush=True)
