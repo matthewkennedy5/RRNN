@@ -13,6 +13,8 @@ import pickle
 VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
 device = torch.device('cpu')
+LOSS2_MARGIN = 2    # Beyond this value, differences in 1st vs. 2nd vector scores
+                    # produce 0 loss.
 
 
 class RRNNTrainer:
@@ -87,7 +89,17 @@ class RRNNTrainer:
                 # the correct vectors.
                 loss2 = 0
                 if self.lamb2 != 0:
-                    loss2 = -np.sum(scores) + np.sum(second_scores)
+                    for s in range(len(scores)):
+                        difference = scores[s] - second_scores[s]
+                        if difference < LOSS2_MARGIN:
+                            # Here the subtraction comes from the fact that we want the
+                            # loss to be 0 when the difference >= LOSS2_MARGIN,
+                            # and equal to 1 when the difference is 0. Therefore,
+                            # loss2 will always be between 0 and the number of
+                            # vectors we have. We divide by LOSS2_MARGIN to scale
+                            # the loss term to be between 0 and 1, so it LOSS2_MARGIN
+                            # doesn't affect the overall scale of loss2.
+                            loss2 += (LOSS2_MARGIN - difference) / LOSS2_MARGIN
 
                 loss3 = 0
                 if self.lamb3 != 0:
