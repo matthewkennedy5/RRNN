@@ -36,8 +36,9 @@ class RRNNTrainer:
         self.optimizer = optimizer
         self.lamb1, self.lamb2, self.lamb3, self.lamb4 = lambdas
         self.loss = torch.nn.KLDivLoss()
+        self.iter_count = 0
 
-    def train(self, epochs, verbose=True, n_processes=5):
+    def train(self, epochs, verbose=True, n_processes=8):
         """Trains the RRNN for the given number of epochs.
 
         Inputs:
@@ -59,13 +60,13 @@ class RRNNTrainer:
         for epoch in range(epochs):
             processes = []
             N = len(self.X_train)
+            # TODO: Look up a better way to partition X_train.
             partition_size = N // n_processes + 1
             for partition in range(n_processes):
                 start_index = partition * partition_size
                 end_index = min(start_index + partition_size, N)
                 p = mp.Process(target=self.train_partition,
                                args=(epoch, start_index, end_index, verbose))
-                # self.train_partition(epoch, start_index, end_index, verbose)
                 p.start()
                 processes.append(p)
             for p in processes:
@@ -90,7 +91,8 @@ class RRNNTrainer:
                 print('Achieved the GRU structure on iteration', iteration)
                 self.gru_count += 1
             if verbose:
-                self.bar.update(iteration + 1)
+                self.iter_count += 1
+                self.bar.update(self.iter_count)
 
     def train_step(self, X, y):
         """Performs a single iteration of training.
