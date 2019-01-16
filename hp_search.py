@@ -5,7 +5,7 @@ import torch
 from GRU import RRNNforGRU
 import dataloader
 
-NB_DATA = 2
+NB_DATA = 100
 EPOCHS = 1
 # RUNTIME = 5 * 24 * 60 * 60
 
@@ -43,6 +43,10 @@ if __name__ == '__main__':
 
     gru_model = torch.load('gru_parameters.pkl')
     model = RRNNforGRU(trainer.HIDDEN_SIZE, trainer.VOCAB_SIZE, params['multiplier'])
+
+    model.share_memory()
+    gru_model.share_memory()
+
     optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
     X_train, y_train = dataloader.load_normalized_data('train20.txt',
                                                        embeddings='gensim')
