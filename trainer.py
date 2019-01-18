@@ -1,4 +1,7 @@
+import os
+import sys
 import time
+import datetime
 import torch
 import torch.multiprocessing as mp
 import numpy as np
@@ -38,7 +41,7 @@ class RRNNTrainer:
         self.loss = torch.nn.KLDivLoss()
         self.iter_count = 0
 
-    def train(self, epochs, verbose=True, n_processes=8):
+    def train(self, epochs, verbose=True, n_processes=1):
         """Trains the RRNN for the given number of epochs.
 
         Inputs:
@@ -171,3 +174,61 @@ class RRNNTrainer:
         is_gru = structures_are_equal(structure, GRU_STRUCTURE)
 
         return (loss, is_gru)
+
+
+# Perform a training run using the given hyperparameters. Saves out data and model checkpoints
+# into the current directory.
+def run(params):
+    # Assuming we are already in the directory where the output files should be
+    start = time.time()
+    gru_model = torch.load('../gru_parameters.pkl')
+    model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['multiplier'])
+
+    model.share_memory()
+    gru_model.share_memory()
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
+    X_train, y_train = dataloader.load_normalized_data('../train20.txt',
+                                                       embeddings='gensim')
+    X_train = X_train[:params['nb_data']]
+    y_train = y_train[:params['nb_data']]
+    for i in range(len(X_train)):
+        X_train[i] = X_train[i].to(device)
+        y_train[i] = torch.tensor(y_train[i], device=device)
+
+    trainer = RRNNTrainer(model, gru_model, X_train, y_train, optimizer,
+                          params['lambdas'])
+    try:
+        loss, gru_count = trainer.train(params['epochs'], verbose=True,
+                                        n_processes=params['n_processes'])
+    except ValueError:
+        print('ValueError')
+        gru_count = -1
+
+    runtime = time.time() - start
+
+    # Save out info
+    pickle.dump(loss, open('loss.pkl', 'wb'))
+    # pickle.dump(GRU count and structure of GRUs)
+    # pickle.dump(scoring vector magnitudes)
+    # Dump parameters
+    pickle.dump(params, open('hyperparameters.pkl', 'wb'))
+    pickle.dump(runtime, open('runtime.pkl', 'wb'))
+    print('[INFO] Stored run data.')
+
+if __name__ == '__main__':
+
+    dirname = sys.argv[1]
+    os.mkdir(dirname)
+    os.chdir(dirname)
+
+    params = {
+        'learning_rate': 1e-4,
+        'multiplier': 1e-4,
+        'lambdas': (1, 1e-2, 0, 50),
+        'nb_data': 1000,
+        'epochs': 1,
+        'n_processes': 6
+    }
+
+    run(params)
