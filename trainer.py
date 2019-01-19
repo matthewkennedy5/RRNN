@@ -183,8 +183,8 @@ class RRNNTrainer:
             prev_loss = pickle.load(open(LOSS_FILE, 'rb'))
             prev_loss.append(loss)
             pickle.dump(prev_loss, open(LOSS_FILE, 'wb'))
-        except EOFError:
-            print('\nPickle EOFError')
+        except Error:
+            print('\nPickle Error')
 
         structure_file = open('structure.txt', 'a')
         structure_file.write(str(structure) + '\n\n')
@@ -240,9 +240,9 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (1000, 1, 0, 2e-1),
-        'nb_data': 3,
-        'epochs': 10,
-        'n_processes': 2
+        'nb_data': 10,
+        'epochs': 2,
+        'n_processes': 5
     }
 
     run(params)
