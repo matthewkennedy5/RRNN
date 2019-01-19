@@ -19,8 +19,6 @@ VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
 device = torch.device('cpu')
 # TODO: Make this a hyperparameter
-LOSS2_MARGIN = 2    # Beyond this value, differences in 1st vs. 2nd vector scores
-                    # produce 0 loss.
 LOSS_FILE = 'loss.pkl'
 HYPERPARAM_FILE = 'hyperparameters.pkl'
 RUNTIME_FILE = 'runtime.pkl'
@@ -35,13 +33,14 @@ class RRNNTrainer:
         y_train - Training labels
 
     """
-    def __init__(self, model, gru_model, X_train, y_train, optimizer, lambdas):
+    def __init__(self, model, gru_model, X_train, y_train, optimizer, params):
         self.model = model
         self.gru_model = gru_model
         self.X_train = X_train
         self.y_train = y_train
         self.optimizer = optimizer
-        self.lamb1, self.lamb2, self.lamb3, self.lamb4 = lambdas
+        self.params = params
+        self.lamb1, self.lamb2, self.lamb3, self.lamb4 = params['lambdas']
         # self.loss = torch.nn.KLDivLoss()
         self.loss = torch.nn.NLLLoss()
         self.iter_count = 0
@@ -142,9 +141,10 @@ class RRNNTrainer:
         # the correct vectors.
         loss2 = 0
         if self.lamb2 != 0:
+            margin = self.params['loss2_margin']
             for s in range(len(scores)):
                 difference = scores[s] - second_scores[s]
-                if difference < LOSS2_MARGIN:
+                if difference < margin:
                     # Here the subtraction comes from the fact that we want the
                     # loss to be 0 when the difference >= LOSS2_MARGIN,
                     # and equal to 1 when the difference is 0. Therefore,
@@ -152,7 +152,7 @@ class RRNNTrainer:
                     # vectors we have. We divide by LOSS2_MARGIN to scale
                     # the loss term to be between 0 and 1, so it LOSS2_MARGIN
                     # doesn't affect the overall scale of loss2.
-                    loss2 += (LOSS2_MARGIN - difference) / LOSS2_MARGIN
+                    loss2 += (margin - difference) / margin
 
         loss3 = 0
         if self.lamb3 != 0:
@@ -190,7 +190,7 @@ class RRNNTrainer:
             structure_file.write('Achieved GRU structure!\n')
         structure_file.write(str(structure) + '\n\n')
         structure_file.close()
-        # print('.', end='', flush=True)
+        print('.', end='', flush=True)
 
 
 # Perform a training run using the given hyperparameters. Saves out data and model checkpoints
@@ -216,8 +216,7 @@ def run(params):
         X_train[i] = X_train[i].to(device)
         y_train[i] = torch.tensor(y_train[i], device=device)
 
-    trainer = RRNNTrainer(model, gru_model, X_train, y_train, optimizer,
-                          params['lambdas'])
+    trainer = RRNNTrainer(model, gru_model, X_train, y_train, optimizer, params)
     try:
         trainer.train(params['epochs'], verbose=False,
                       n_processes=params['n_processes'])
@@ -241,9 +240,10 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (1000, 1, 0, 2e-1),
-        'nb_data': 5000,
+        'nb_data': 10,
         'epochs': 1,
-        'n_processes': 1
+        'n_processes': 5,
+        'loss2_margin': 1
     }
 
     run(params)
