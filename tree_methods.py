@@ -188,5 +188,7 @@ def tree_distance_metric_list(pred_tree, target_tree, order=True, samples=10, de
                     tmp_list.append(tmp)
                 res += min(tmp_list)
             res_list.append(res)
-        return torch.tensor(min(res_list)/len(pred_tree), device=device)
+        # return torch.tensor(min(res_list)/len(pred_tree), device=device)
+        tree_distance = min(res_list) / len(pred_tree)
+        return tree_distance.clone().detach()
 
