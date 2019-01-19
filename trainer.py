@@ -42,7 +42,8 @@ class RRNNTrainer:
         self.y_train = y_train
         self.optimizer = optimizer
         self.lamb1, self.lamb2, self.lamb3, self.lamb4 = lambdas
-        self.loss = torch.nn.KLDivLoss()
+        # self.loss = torch.nn.KLDivLoss()
+        self.loss = torch.nn.NLLLoss()
         self.iter_count = 0
 
     def train(self, epochs, verbose=True, n_processes=1):
@@ -218,7 +219,7 @@ def run(params):
     trainer = RRNNTrainer(model, gru_model, X_train, y_train, optimizer,
                           params['lambdas'])
     try:
-        trainer.train(params['epochs'], verbose=True,
+        trainer.train(params['epochs'], verbose=False,
                       n_processes=params['n_processes'])
     except ValueError:
         print('ValueError')
@@ -240,8 +241,8 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (1000, 1, 0, 2e-1),
-        'nb_data': 10,
-        'epochs': 2,
+        'nb_data': 5000,
+        'epochs': 1,
         'n_processes': 5
     }
 
