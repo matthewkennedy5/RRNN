@@ -42,7 +42,7 @@ def retrieve_activation_func(string, vec, multiplier):
         return a vector with given activation function
     '''
     if vec.abs().max() > 1 and string not in ['tanh', 'sigmoid']:
-        if vec.abs.max() > 1.05:
+        if vec.abs().max() > 1.05:
             print('\nVector element > 1.05: ')
             print(vec[vec.abs() > 1])
     if string == 'tanh':
