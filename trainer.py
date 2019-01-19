@@ -59,7 +59,6 @@ class RRNNTrainer:
         """
         pickle.dump([], open(LOSS_FILE, 'wb'))
         iterations = epochs * len(self.X_train)
-        self.gru_count = 0
         # set to training mode
         self.model.train()
         if verbose:
@@ -96,9 +95,6 @@ class RRNNTrainer:
             y = y_partition[i]
             self.train_step(X, y)
 
-            # if is_gru:
-            #     print('Achieved the GRU structure on iteration', self.iter_count)
-            #     self.gru_count += 1
             if verbose:
                 self.bar.update(self.iter_count)
 
@@ -190,9 +186,10 @@ class RRNNTrainer:
             print('\nPickle Error')
 
         structure_file = open('structure.txt', 'a')
+        if is_gru:
+            structure_file.write('Achieved GRU structure!\n')
         structure_file.write(str(structure) + '\n\n')
         structure_file.close()
-        # TODO: Figure out how to save GRU count / structure
         # print('.', end='', flush=True)
 
 
