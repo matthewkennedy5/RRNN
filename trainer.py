@@ -73,12 +73,13 @@ class RRNNTrainer:
             for partition in range(n_processes):
                 start_index = partition * partition_size
                 end_index = min(start_index + partition_size, N)
-                p = mp.Process(target=self.train_partition,
-                               args=(epoch, start_index, end_index, verbose))
-                p.start()
-                processes.append(p)
-            for p in processes:
-                p.join()
+                self.train_partition(epoch, start_index, end_index, verbose)
+            #     p = mp.Process(target=self.train_partition,
+            #                    args=(epoch, start_index, end_index, verbose))
+            #     p.start()
+            #     processes.append(p)
+            # for p in processes:
+            #     p.join()
 
             # Checkpoint the model
             torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch + 1,))
@@ -137,7 +138,8 @@ class RRNNTrainer:
         # calculate loss function
         loss1 = 0
         if self.lamb1 != 0:
-            loss1 = self.loss(out, y.reshape(1,27).float())
+            loss1 = self.loss(out, torch.argmax(y).unsqueeze(0))
+            # loss1 = self.loss(out, y.reshape(1,27).float())
 
         # loss2 is the negative sum of the scores (alpha) of the vector
         # corresponding to each node. It is an attempt to drive up the scores for
@@ -191,6 +193,7 @@ class RRNNTrainer:
         structure_file.write(str(structure) + '\n\n')
         structure_file.close()
         # TODO: Figure out how to save GRU count / structure
+        # print('.', end='', flush=True)
 
 
 # Perform a training run using the given hyperparameters. Saves out data and model checkpoints
@@ -243,7 +246,7 @@ if __name__ == '__main__':
         'lambdas': (1000, 1, 0, 2e-1),
         'nb_data': 5000,
         'epochs': 1,
-        'n_processes': 5
+        'n_processes': 1
     }
 
     run(params)
