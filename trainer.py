@@ -18,7 +18,6 @@ import pickle
 VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
 device = torch.device('cpu')
-# TODO: Make this a hyperparameter
 LOSS_FILE = 'loss.pkl'
 HYPERPARAM_FILE = 'hyperparameters.pkl'
 RUNTIME_FILE = 'runtime.pkl'
@@ -71,13 +70,13 @@ class RRNNTrainer:
             for partition in range(n_processes):
                 start_index = partition * partition_size
                 end_index = min(start_index + partition_size, N)
-                self.train_partition(epoch, start_index, end_index, verbose)
-            #     p = mp.Process(target=self.train_partition,
-            #                    args=(epoch, start_index, end_index, verbose))
-            #     p.start()
-            #     processes.append(p)
-            # for p in processes:
-            #     p.join()
+                # self.train_partition(epoch, start_index, end_index, verbose)
+                p = mp.Process(target=self.train_partition,
+                               args=(epoch, start_index, end_index, verbose))
+                p.start()
+                processes.append(p)
+            for p in processes:
+                p.join()
 
             # Checkpoint the model
             torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch + 1,))
@@ -202,7 +201,8 @@ def run(params):
 
     start = time.time()
     gru_model = torch.load('../gru_parameters.pkl')
-    model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['multiplier'])
+    model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['multiplier'],
+                       params['scoring_hidden_size'])
 
     model.share_memory()
     gru_model.share_memory()
@@ -226,7 +226,7 @@ def run(params):
 
     runtime = time.time() - start
     pickle.dump(runtime, open(RUNTIME_FILE, 'wb'))
-    print('[INFO] Run complete.')
+    print('\n[INFO] Run complete.')
 
     torch.save(model.state_dict(), 'final_weights.pt')
 
@@ -240,10 +240,11 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (1000, 1, 0, 2e-1),
-        'nb_data': 10,
-        'epochs': 1,
+        'nb_data': 5,
+        'epochs': 5,
         'n_processes': 5,
-        'loss2_margin': 1
+        'loss2_margin': 1,
+        'scoring_hidden_size': HIDDEN_SIZE     # Set to None for no hidden layer
     }
 
     run(params)
