@@ -18,8 +18,12 @@ import pickle
 VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
 device = torch.device('cpu')
+# TODO: Make this a hyperparameter
 LOSS2_MARGIN = 2    # Beyond this value, differences in 1st vs. 2nd vector scores
                     # produce 0 loss.
+LOSS_FILE = 'loss.pkl'
+HYPERPARAM_FILE = 'hyperparameters.pkl'
+RUNTIME_FILE = 'runtime.pkl'
 
 
 class RRNNTrainer:
@@ -52,8 +56,8 @@ class RRNNTrainer:
             loss_history - numpy array containing the loss at each training iteration.
             structure - The final structure of the RRNN tree.
         """
+        pickle.dump([], open(LOSS_FILE, 'wb'))
         iterations = epochs * len(self.X_train)
-        self.loss_history = np.zeros([iterations, 4])  # Columns are loss1, loss2, etc.
         self.gru_count = 0
         # set to training mode
         self.model.train()
@@ -74,10 +78,12 @@ class RRNNTrainer:
                 processes.append(p)
             for p in processes:
                 p.join()
+
+            # Checkpoint the model
+            torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch + 1,))
         if verbose:
             self.bar.finish()
         self.model.eval()
-        return self.loss_history, self.gru_count
 
     def train_partition(self, epoch, start, end, verbose=False):
         """Performs one epoch of training on the given partition of the data."""
@@ -86,15 +92,12 @@ class RRNNTrainer:
         for i in range(len(X_partition)):
             X = X_partition[i]
             y = y_partition[i]
-            loss, is_gru = self.train_step(X, y)
+            self.train_step(X, y)
 
-            iteration = epoch * len(self.X_train) + start + i
-            self.loss_history[iteration, :] = loss
-            if is_gru:
-                print('Achieved the GRU structure on iteration', iteration)
-                self.gru_count += 1
+            # if is_gru:
+            #     print('Achieved the GRU structure on iteration', self.iter_count)
+            #     self.gru_count += 1
             if verbose:
-                self.iter_count += 1
                 self.bar.update(self.iter_count)
 
     def train_step(self, X, y):
@@ -172,14 +175,30 @@ class RRNNTrainer:
 
         loss = np.array([self.lamb1*loss1, self.lamb2*loss2, self.lamb3*loss3, self.lamb4*loss4])
         is_gru = structures_are_equal(structure, GRU_STRUCTURE)
+        self.iter_count += 1
 
-        return (loss, is_gru)
+        # Pickle out the loss as we train because multiprocessing is weird with
+        # instance variables
+        try:
+            prev_loss = pickle.load(open(LOSS_FILE, 'rb'))
+            prev_loss.append(loss)
+            pickle.dump(prev_loss, open(LOSS_FILE, 'wb'))
+        except EOFError:
+            print('\nPickle EOFError')
+
+        structure_file = open('structure.txt', 'a')
+        structure_file.write(str(structure) + '\n\n')
+        structure_file.close()
+        # TODO: Figure out how to save GRU count / structure
 
 
 # Perform a training run using the given hyperparameters. Saves out data and model checkpoints
 # into the current directory.
 def run(params):
     # Assuming we are already in the directory where the output files should be
+    pickle.dump(params, open(HYPERPARAM_FILE, 'wb'))
+    print('[INFO] Saved hyperparameters.')
+
     start = time.time()
     gru_model = torch.load('../gru_parameters.pkl')
     model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['multiplier'])
@@ -199,22 +218,17 @@ def run(params):
     trainer = RRNNTrainer(model, gru_model, X_train, y_train, optimizer,
                           params['lambdas'])
     try:
-        loss, gru_count = trainer.train(params['epochs'], verbose=True,
-                                        n_processes=params['n_processes'])
+        trainer.train(params['epochs'], verbose=True,
+                      n_processes=params['n_processes'])
     except ValueError:
         print('ValueError')
         gru_count = -1
 
     runtime = time.time() - start
+    pickle.dump(runtime, open(RUNTIME_FILE, 'wb'))
+    print('[INFO] Run complete.')
 
-    # Save out info
-    pickle.dump(loss, open('loss.pkl', 'wb'))
-    # pickle.dump(GRU count and structure of GRUs)
-    # pickle.dump(scoring vector magnitudes)
-    # Dump parameters
-    pickle.dump(params, open('hyperparameters.pkl', 'wb'))
-    pickle.dump(runtime, open('runtime.pkl', 'wb'))
-    print('[INFO] Stored run data.')
+    torch.save(model.state_dict(), 'final_weights.pt')
 
 if __name__ == '__main__':
 
@@ -223,12 +237,12 @@ if __name__ == '__main__':
     os.chdir(dirname)
 
     params = {
-        'learning_rate': 1e-4,
-        'multiplier': 1e-4,
-        'lambdas': (1, 1e-2, 0, 50),
-        'nb_data': 1000,
-        'epochs': 1,
-        'n_processes': 6
+        'learning_rate': 1e-5,
+        'multiplier': 1e-3,
+        'lambdas': (1000, 1, 0, 2e-1),
+        'nb_data': 3,
+        'epochs': 10,
+        'n_processes': 2
     }
 
     run(params)
