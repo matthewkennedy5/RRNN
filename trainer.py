@@ -8,11 +8,11 @@ import numpy as np
 
 # import tree_methods_parallel as tree_methods
 import tree_methods
-from progressbar_utils import init_progress_bar
 import dataloader
 from GRU import RRNNforGRU
 from structure_utils import structures_are_equal, GRU_STRUCTURE
 import pickle
+from tqdm import tqdm
 # 1106
 
 VOCAB_SIZE = 27
@@ -56,20 +56,19 @@ class RRNNTrainer:
             structure - The final structure of the RRNN tree.
         """
         pickle.dump([], open(LOSS_FILE, 'wb'))
-        iterations = epochs * len(self.X_train)
+        N = len(self.X_train)
+        iterations = epochs * N
         # set to training mode
         self.model.train()
-        if verbose:
-            self.bar = init_progress_bar(iterations)
-            self.bar.start()
         for epoch in range(epochs):
+            if verbose:
+                print('\n\nEpoch ' + str(epoch + 1))
+                print(' ' * N + '|', end='\r')
             processes = []
-            N = len(self.X_train)
-            # TODO: Look up a better way to partition X_train.
-            partition_size = N // n_processes + 1
-            for partition in range(n_processes):
-                start_index = partition * partition_size
-                end_index = min(start_index + partition_size, N)
+            partition_size = N // n_processes + 1   # We don't want to undershoot
+            for i in range(0, N, partition_size):
+                start_index = i
+                end_index = start_index + partition_size
                 # self.train_partition(epoch, start_index, end_index, verbose)
                 p = mp.Process(target=self.train_partition,
                                args=(epoch, start_index, end_index, verbose))
@@ -80,8 +79,6 @@ class RRNNTrainer:
 
             # Checkpoint the model
             torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch + 1,))
-        if verbose:
-            self.bar.finish()
         self.model.eval()
 
     def train_partition(self, epoch, start, end, verbose=False):
@@ -91,12 +88,9 @@ class RRNNTrainer:
         for i in range(len(X_partition)):
             X = X_partition[i]
             y = y_partition[i]
-            self.train_step(X, y)
+            self.train_step(X, y, verbose)
 
-            if verbose:
-                self.bar.update(self.iter_count)
-
-    def train_step(self, X, y):
+    def train_step(self, X, y, verbose=False):
         """Performs a single iteration of training.
 
         Inputs:
@@ -181,15 +175,16 @@ class RRNNTrainer:
             prev_loss = pickle.load(open(LOSS_FILE, 'rb'))
             prev_loss.append(loss)
             pickle.dump(prev_loss, open(LOSS_FILE, 'wb'))
-        except Error:
-            print('\nPickle Error')
+        except Exception:
+            print('\nPickle Exception')
 
         structure_file = open('structure.txt', 'a')
         if is_gru:
             structure_file.write('Achieved GRU structure!\n')
         structure_file.write(str(structure) + '\n\n')
         structure_file.close()
-        print('.', end='', flush=True)
+        if verbose:
+            print('.', end='', flush=True)
 
 
 # Perform a training run using the given hyperparameters. Saves out data and model checkpoints
@@ -218,7 +213,7 @@ def run(params):
 
     trainer = RRNNTrainer(model, gru_model, X_train, y_train, optimizer, params)
     try:
-        trainer.train(params['epochs'], verbose=False,
+        trainer.train(params['epochs'], verbose=True,
                       n_processes=params['n_processes'])
     except ValueError:
         print('ValueError')
@@ -239,12 +234,12 @@ if __name__ == '__main__':
     params = {
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
-        'lambdas': (1000, 1, 0, 2e-1),
-        'nb_data': 5,
+        'lambdas': (2000, 1, 0, 2e-1),
+        'nb_data': 5000,
         'epochs': 5,
         'n_processes': 5,
         'loss2_margin': 1,
-        'scoring_hidden_size': HIDDEN_SIZE     # Set to None for no hidden layer
+        'scoring_hidden_size': None     # Set to None for no hidden layer
     }
 
     run(params)

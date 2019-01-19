@@ -70,7 +70,7 @@ def retrieve_binary_func(string, vec1, vec2):
 
 class RRNNforGRUCell(nn.Module):
 
-    def __init__(self, hidden_size, multiplier=DEFAULT_MULTIPLIER):
+    def __init__(self, hidden_size, multiplier=DEFAULT_MULTIPLIER, scoring_hsize=None):
         super(RRNNforGRUCell, self).__init__()
         self.multiplier = multiplier    # multiplier for the activation functions and initialization
                                         # of parameter matrices
@@ -83,7 +83,15 @@ class RRNNforGRUCell(nn.Module):
         self.L_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.randn(hidden_size, hidden_size)) for _ in range(self.l)])
         self.R_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.randn(hidden_size, hidden_size)) for _ in range(self.l)])
         self.b_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.randn(1, hidden_size)) for _ in range(self.l)])
-        self.scoring = nn.Linear(hidden_size, 1, bias=False)
+
+        if scoring_hsize is not None:
+            self.scoring = nn.Sequential(
+                                nn.Linear(hidden_size, scoring_hsize),
+                                nn.ReLU(),
+                                nn.Linear(scoring_hsize, 1)
+                           )
+        else:
+            self.scoring = nn.Linear(hidden_size, 1, bias=False)
 
     def tree_structure_search(self, x, h_prev):
         """
@@ -242,11 +250,11 @@ class RRNNforGRUCell(nn.Module):
 
 class RRNNforGRU(nn.Module):
 
-    def __init__(self, hidden_size, vocab_size, multiplier=DEFAULT_MULTIPLIER):
+    def __init__(self, hidden_size, vocab_size, multiplier=DEFAULT_MULTIPLIER, scoring_hsize=None):
         super(RRNNforGRU, self).__init__()
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
-        self.cell = RRNNforGRUCell(hidden_size, multiplier)
+        self.cell = RRNNforGRUCell(hidden_size, multiplier, scoring_hsize=scoring_hsize)
         self.output_layer = nn.Linear(hidden_size, vocab_size)
 
     def init_hidden(self):
