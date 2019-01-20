@@ -41,7 +41,7 @@ class RRNNTrainer:
         self.params = params
         self.lamb1, self.lamb2, self.lamb3, self.lamb4 = params['lambdas']
         # self.loss = torch.nn.KLDivLoss()
-        self.loss = torch.nn.NLLLoss()
+        self.loss = torch.nn.CrossEntropyLoss()
         self.iter_count = 0
 
     def train(self, epochs, verbose=True, n_processes=1):
@@ -63,7 +63,7 @@ class RRNNTrainer:
         for epoch in range(epochs):
             if verbose:
                 print('\n\nEpoch ' + str(epoch + 1))
-                print(' ' * N + '|', end='\r')
+                # print(' ' * N + '|', end='\r')
             processes = []
             partition_size = N // n_processes + 1   # We don't want to undershoot
             for i in range(0, N, partition_size):
@@ -240,6 +240,7 @@ if __name__ == '__main__':
         'n_processes': 5,
         'loss2_margin': 1,
         'scoring_hidden_size': None     # Set to None for no hidden layer
+        # 'batch_size': 1
     }
 
     run(params)
