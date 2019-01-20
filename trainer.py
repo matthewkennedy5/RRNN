@@ -12,8 +12,6 @@ import dataloader
 from GRU import RRNNforGRU
 from structure_utils import structures_are_equal, GRU_STRUCTURE
 import pickle
-from tqdm import tqdm
-# 1106
 
 VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
