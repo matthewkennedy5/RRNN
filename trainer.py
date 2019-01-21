@@ -16,7 +16,7 @@ import pickle
 VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
 device = torch.device('cpu')
-LOSS_FILE = 'loss.pkl'
+LOSS_FILE = 'loss.txt'
 HYPERPARAM_FILE = 'hyperparameters.pkl'
 RUNTIME_FILE = 'runtime.pkl'
 
@@ -53,7 +53,7 @@ class RRNNTrainer:
             loss_history - numpy array containing the loss at each training iteration.
             structure - The final structure of the RRNN tree.
         """
-        pickle.dump([], open(LOSS_FILE, 'wb'))
+        # pickle.dump([], open(LOSS_FILE, 'wb'))
         N = len(self.X_train)
         iterations = epochs * N
         # set to training mode
@@ -167,14 +167,17 @@ class RRNNTrainer:
         is_gru = structures_are_equal(structure, GRU_STRUCTURE)
         self.iter_count += 1
 
-        # Pickle out the loss as we train because multiprocessing is weird with
+        # Save out the loss as we train because multiprocessing is weird with
         # instance variables
-        try:
-            prev_loss = pickle.load(open(LOSS_FILE, 'rb'))
-            prev_loss.append(loss)
-            pickle.dump(prev_loss, open(LOSS_FILE, 'wb'))
-        except Exception:
-            print('\nPickle Exception')
+        # try:
+        #     prev_loss = pickle.load(open(LOSS_FILE, 'rb'))
+        #     prev_loss.append(loss)
+        #     pickle.dump(prev_loss, open(LOSS_FILE, 'wb'))
+        # except Exception:
+        #     print('\nPickle Exception')
+        with open(LOSS_FILE, 'a') as f:
+            f.write('%f %f %f %f\n' % (loss[0].item(), loss[1].item(), loss[2], loss[3]))
+        f.close()
 
         structure_file = open('structure.txt', 'a')
         if is_gru:
@@ -233,9 +236,9 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (2000, 1, 0, 2e-1),
-        'nb_data': 5000,
-        'epochs': 5,
-        'n_processes': 5,
+        'nb_data': 3,
+        'epochs': 2,
+        'n_processes': 2,
         'loss2_margin': 1,
         'scoring_hidden_size': None     # Set to None for no hidden layer
         # 'batch_size': 1
