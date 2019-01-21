@@ -76,7 +76,7 @@ class RRNNTrainer:
                 p.join()
 
             # Checkpoint the model
-            torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch + 1,))
+            # torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch + 1,))
         self.model.eval()
 
     def train_partition(self, epoch, start, end, verbose=False):
@@ -169,12 +169,6 @@ class RRNNTrainer:
 
         # Save out the loss as we train because multiprocessing is weird with
         # instance variables
-        # try:
-        #     prev_loss = pickle.load(open(LOSS_FILE, 'rb'))
-        #     prev_loss.append(loss)
-        #     pickle.dump(prev_loss, open(LOSS_FILE, 'wb'))
-        # except Exception:
-        #     print('\nPickle Exception')
         with open(LOSS_FILE, 'a') as f:
             f.write('%f %f %f %f\n' % (loss[0].item(), loss[1].item(), loss[2], loss[3]))
         f.close()
@@ -235,12 +229,12 @@ if __name__ == '__main__':
     params = {
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
-        'lambdas': (2000, 1, 0, 2e-1),
+        'lambdas': (20, 1, 0, 2),
         'nb_data': 3,
         'epochs': 2,
         'n_processes': 2,
         'loss2_margin': 1,
-        'scoring_hidden_size': None     # Set to None for no hidden layer
+        'scoring_hidden_size': 128     # Set to None for no hidden layer
         # 'batch_size': 1
     }
 
