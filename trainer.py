@@ -63,8 +63,7 @@ class RRNNTrainer:
 
             X_batches = []
             y_batches = []
-            # for p in range(self.params['n_processes']):
-            process = 0
+            # process = 0
             n_processes = self.params['n_processes']
             partition_size = batch_size * n_processes
             for p in range(0, self.X_train.size()[0], partition_size):
@@ -89,7 +88,6 @@ class RRNNTrainer:
             loss_history - numpy array containing the loss at each training iteration.
             structure - The final structure of the RRNN tree.
         """
-        # pickle.dump([], open(LOSS_FILE, 'wb'))
         N = len(self.X_train)
         iterations = epochs * N
         # set to training mode
@@ -100,16 +98,15 @@ class RRNNTrainer:
             for i in range(len(X_batches)):
                 X_batch = X_batches[i]
                 y_batch = y_batches[i]
-                p = mp.Process(target=self.train_batch, args=(X_batch, y_batch))
-                p.start()
-                processes.append(p)
-            for p in processes:
-                p.join()
+            #     p = mp.Process(target=self.train_batch, args=(X_batch, y_batch))
+            #     p.start()
+            #     processes.append(p)
+            # for p in processes:
+            #     p.join()
 
                 # For debugging
-                # self.train_batch(X_batch, y_batch)
+                self.train_batch(X_batch, y_batch)
 
-        # TODO: Change all verbose to use the param 'verbose'
         self.model.eval()
 
     def train_batch(self, X_batch, y_batch):
@@ -202,7 +199,9 @@ class RRNNTrainer:
                     # vectors we have. We divide by LOSS2_MARGIN to scale
                     # the loss term to be between 0 and 1, so it LOSS2_MARGIN
                     # doesn't affect the overall scale of loss2.
-                    loss2 += (margin - difference) / margin
+                    value = (margin - difference) / margin
+                    if value > 0:
+                        loss2 += value
 
         loss3 = 0
         if self.lamb3 != 0:
