@@ -154,7 +154,7 @@ def tree_distance_metric(tree1, tree2):
     mat2 = torch.zeros(2**max_depth-1, tree1.vector.shape[1])
     mat1 = tree_matrixize(tree1, mat1)
     mat2 = tree_matrixize(tree2, mat2)
-    return (mat1-mat2).norm()
+    return (mat1-mat2).norm() ** 2
 
 def tree_distance_metric_list(pred_tree, target_tree, order=True, samples=10, device=torch.device('cpu')):
     # 不考虑target tree的不同order
