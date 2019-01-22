@@ -57,6 +57,9 @@ class RRNNTrainer:
             if self.params['verbose']:
                 print('\n\nEpoch ' + str(epoch + 1))
 
+            # Checkpoint the model
+            torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch,))
+
             X_batches = []
             y_batches = []
             # for p in range(self.params['n_processes']):
@@ -64,10 +67,6 @@ class RRNNTrainer:
             n_processes = self.params['n_processes']
             partition_size = batch_size * n_processes
             for p in range(0, self.X_train.size()[0], partition_size):
-                # X_batches = self.X_train[b:b+partition_size]
-                # y_batch = self.y_train[b:b+partition_size]
-                # X_batches.append(X_batch)
-                # y_batches.append(y_batch)
                 X_batches = []
                 y_batches = []
                 for b in range(p, p+partition_size, batch_size):
@@ -111,19 +110,7 @@ class RRNNTrainer:
                 # self.train_batch(X_batch, y_batch)
 
         # TODO: Change all verbose to use the param 'verbose'
-
-        #     # Checkpoint the model
-        #     # torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch + 1,))
-        # self.model.eval()
-
-    def train_partition(self, epoch, start, end, verbose=False):
-        """Performs one epoch of training on the given partition of the data."""
-        X_partition = self.X_train[start:end]
-        y_partition = self.y_train[start:end]
-        for i in range(len(X_partition)):
-            X = X_partition[i]
-            y = y_partition[i]
-            self.train_step(X, y, verbose)
+        self.model.eval()
 
     def train_batch(self, X_batch, y_batch):
          # zero gradient
