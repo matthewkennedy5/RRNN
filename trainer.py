@@ -58,7 +58,8 @@ class RRNNTrainer:
                 print('\n\nEpoch ' + str(epoch + 1))
 
             # Checkpoint the model
-            torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch,))
+            if epoch % self.params['epochs_per_checkpoint'] == 0:
+                torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch,))
 
             X_batches = []
             y_batches = []
@@ -77,8 +78,7 @@ class RRNNTrainer:
                         y_batches.append(y_batch)
                 yield X_batches, y_batches
 
-
-    def train(self, epochs, verbose=True, n_processes=1):
+    def train(self, epochs, n_processes=1):
         """Trains the RRNN for the given number of epochs.
 
         Inputs:
@@ -119,7 +119,7 @@ class RRNNTrainer:
         batch_size = self.params['batch_size']
         loss_hist = np.zeros((batch_size, 4))
         loss_fn = 0
-        for i in range(batch_size):
+        for i in range(X_batch.size()[0]):
             x = X_batch[i]
             y = y_batch[i]
             loss = self.train_step(x, y)
@@ -150,7 +150,7 @@ class RRNNTrainer:
         if self.params['verbose']:
             print('.', end='', flush=True)
 
-    def train_step(self, X, y, verbose=False):
+    def train_step(self, X, y):
         """Performs a single iteration of training.
 
         Inputs:
@@ -255,8 +255,7 @@ def run(params):
 
     trainer = RRNNTrainer(model, gru_model, X_train, y_train, optimizer, params)
     try:
-        trainer.train(params['epochs'], verbose=True,
-                      n_processes=params['n_processes'])
+        trainer.train(params['epochs'], n_processes=params['n_processes'])
     except ValueError:
         print('ValueError')
         gru_count = -1
@@ -277,9 +276,9 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
-        'nb_data': 40,
-        'epochs': 2,
-        'n_processes': 7,
+        'nb_data': 3,
+        'epochs': 1,
+        'n_processes': 1,
         'loss2_margin': 1,
         'scoring_hidden_size': 128,     # Set to None for no hidden layer
         'batch_size': 2,
