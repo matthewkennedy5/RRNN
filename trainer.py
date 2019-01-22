@@ -2,9 +2,11 @@ import os
 import sys
 import time
 import datetime
+import random
 import torch
 import torch.multiprocessing as mp
 import numpy as np
+from torch.utils.data import TensorDataset, DataLoader
 
 # import tree_methods_parallel as tree_methods
 import tree_methods
@@ -12,6 +14,7 @@ import dataloader
 from GRU import RRNNforGRU
 from structure_utils import structures_are_equal, GRU_STRUCTURE
 import pickle
+import pdb
 
 VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
@@ -27,8 +30,7 @@ class RRNNTrainer:
     Inputs:
         model - RRNN model to train
         X_train - Training data. List of 3D torch tensors.
-        y_train - Training labels
-
+        y_train - Training labels (one-hot)
     """
     def __init__(self, model, gru_model, X_train, y_train, optimizer, params):
         self.model = model
@@ -41,6 +43,41 @@ class RRNNTrainer:
         # self.loss = torch.nn.KLDivLoss()
         self.loss = torch.nn.CrossEntropyLoss()
         self.iter_count = 0
+
+    def batch_generator(self):
+        epochs = self.params['epochs']
+        batch_size = self.params['batch_size']
+        for epoch in range(epochs):
+            # Shuffle data
+            shuffle_order = np.arange(len(self.X_train))
+            np.random.shuffle(shuffle_order)
+            self.X_train = self.X_train[shuffle_order]
+            self.y_train = self.y_train[shuffle_order]
+
+            if self.params['verbose']:
+                print('\n\nEpoch ' + str(epoch + 1))
+
+            X_batches = []
+            y_batches = []
+            # for p in range(self.params['n_processes']):
+            process = 0
+            n_processes = self.params['n_processes']
+            partition_size = batch_size * n_processes
+            for p in range(0, self.X_train.size()[0], partition_size):
+                # X_batches = self.X_train[b:b+partition_size]
+                # y_batch = self.y_train[b:b+partition_size]
+                # X_batches.append(X_batch)
+                # y_batches.append(y_batch)
+                X_batches = []
+                y_batches = []
+                for b in range(p, p+partition_size, batch_size):
+                    if b < len(self.X_train):
+                        X_batch = self.X_train[b:b+batch_size]
+                        y_batch = self.y_train[b:b+batch_size]
+                        X_batches.append(X_batch)
+                        y_batches.append(y_batch)
+                yield X_batches, y_batches
+
 
     def train(self, epochs, verbose=True, n_processes=1):
         """Trains the RRNN for the given number of epochs.
@@ -58,26 +95,26 @@ class RRNNTrainer:
         iterations = epochs * N
         # set to training mode
         self.model.train()
-        for epoch in range(epochs):
-            if verbose:
-                print('\n\nEpoch ' + str(epoch + 1))
-                # print(' ' * N + '|', end='\r')
+
+        for X_batches, y_batches in self.batch_generator():
             processes = []
-            partition_size = N // n_processes + 1   # We don't want to undershoot
-            for i in range(0, N, partition_size):
-                start_index = i
-                end_index = start_index + partition_size
-                # self.train_partition(epoch, start_index, end_index, verbose)
-                p = mp.Process(target=self.train_partition,
-                               args=(epoch, start_index, end_index, verbose))
+            for i in range(len(X_batches)):
+                X_batch = X_batches[i]
+                y_batch = y_batches[i]
+                p = mp.Process(target=self.train_batch, args=(X_batch, y_batch))
                 p.start()
                 processes.append(p)
             for p in processes:
                 p.join()
 
-            # Checkpoint the model
-            # torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch + 1,))
-        self.model.eval()
+                # For debugging
+                # self.train_batch(X_batch, y_batch)
+
+        # TODO: Change all verbose to use the param 'verbose'
+
+        #     # Checkpoint the model
+        #     # torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch + 1,))
+        # self.model.eval()
 
     def train_partition(self, epoch, start, end, verbose=False):
         """Performs one epoch of training on the given partition of the data."""
@@ -87,6 +124,44 @@ class RRNNTrainer:
             X = X_partition[i]
             y = y_partition[i]
             self.train_step(X, y, verbose)
+
+    def train_batch(self, X_batch, y_batch):
+         # zero gradient
+        self.optimizer.zero_grad()
+
+        batch_size = self.params['batch_size']
+        loss_hist = np.zeros((batch_size, 4))
+        loss_fn = 0
+        for i in range(batch_size):
+            x = X_batch[i]
+            y = y_batch[i]
+            loss = self.train_step(x, y)
+            loss_fn += sum(loss)
+            # TODO: Clean this up
+            for l in range(4):
+                try:
+                    loss_hist[i, l] = loss[l].item()
+                except AttributeError:
+                    loss_hist[i, l] = loss[l]
+
+        # Average out the loss
+        loss_hist = np.mean(loss_hist, axis=0)
+        loss_fn /= batch_size
+
+        loss_fn.backward()
+        self.optimizer.step()
+
+        self.iter_count += 1
+
+        # Save out the loss as we train because multiprocessing is weird with
+        # instance variables
+        with open(LOSS_FILE, 'a') as f:
+            f.write('%f %f %f %f\n' % (loss_hist[0].item(), loss_hist[1].item(),
+                                       loss_hist[2], loss_hist[3]))
+        f.close()
+
+        if self.params['verbose']:
+            print('.', end='', flush=True)
 
     def train_step(self, X, y, verbose=False):
         """Performs a single iteration of training.
@@ -101,9 +176,6 @@ class RRNNTrainer:
             is_gru - Boolean that is True if the structure of our RRNN
                 is the GRU structure after the iteration.
         """
-         # zero gradient
-        self.optimizer.zero_grad()
-
         # forward pass and compute loss
         out, h_list, pred_tree_list, scores, second_scores, structure = self.model(X)
 
@@ -158,29 +230,15 @@ class RRNNTrainer:
                                                                 samples=5,
                                                                 device=device)
 
-        # compute gradient and take step in optimizer
-        loss_fn = self.lamb1*loss1 + self.lamb2*loss2 + self.lamb3*loss3 + self.lamb4*loss4
-        loss_fn.backward()
-        self.optimizer.step()
-
-        loss = np.array([self.lamb1*loss1, self.lamb2*loss2, self.lamb3*loss3, self.lamb4*loss4])
-        is_gru = structures_are_equal(structure, GRU_STRUCTURE)
-        self.iter_count += 1
-
-        # Save out the loss as we train because multiprocessing is weird with
-        # instance variables
-        with open(LOSS_FILE, 'a') as f:
-            f.write('%f %f %f %f\n' % (loss[0].item(), loss[1].item(), loss[2], loss[3]))
-        f.close()
-
+        # Record the structure
         structure_file = open('structure.txt', 'a')
+        is_gru = structures_are_equal(structure, GRU_STRUCTURE)
         if is_gru:
             structure_file.write('Achieved GRU structure!\n')
         structure_file.write(str(structure) + '\n\n')
         structure_file.close()
-        if verbose:
-            print('.', end='', flush=True)
 
+        return self.lamb1*loss1, self.lamb2*loss2, self.lamb3*loss3, self.lamb4*loss4
 
 # Perform a training run using the given hyperparameters. Saves out data and model checkpoints
 # into the current directory.
@@ -205,6 +263,8 @@ def run(params):
     for i in range(len(X_train)):
         X_train[i] = X_train[i].to(device)
         y_train[i] = torch.tensor(y_train[i], device=device)
+    X_train = torch.stack(X_train, dim=0)
+    y_train = torch.stack(y_train, dim=0)
 
     trainer = RRNNTrainer(model, gru_model, X_train, y_train, optimizer, params)
     try:
@@ -230,12 +290,14 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
-        'nb_data': 3,
+        'nb_data': 40,
         'epochs': 2,
-        'n_processes': 2,
+        'n_processes': 7,
         'loss2_margin': 1,
-        'scoring_hidden_size': 128     # Set to None for no hidden layer
-        # 'batch_size': 1
+        'scoring_hidden_size': 128,     # Set to None for no hidden layer
+        'batch_size': 2,
+        'verbose': True,
+        'epochs_per_checkpoint': 1
     }
 
     run(params)
