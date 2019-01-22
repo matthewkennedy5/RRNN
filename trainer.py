@@ -98,14 +98,14 @@ class RRNNTrainer:
             for i in range(len(X_batches)):
                 X_batch = X_batches[i]
                 y_batch = y_batches[i]
-            #     p = mp.Process(target=self.train_batch, args=(X_batch, y_batch))
-            #     p.start()
-            #     processes.append(p)
-            # for p in processes:
-            #     p.join()
+                p = mp.Process(target=self.train_batch, args=(X_batch, y_batch))
+                p.start()
+                processes.append(p)
+            for p in processes:
+                p.join()
 
                 # For debugging
-                self.train_batch(X_batch, y_batch)
+                # self.train_batch(X_batch, y_batch)
 
         self.model.eval()
 
@@ -241,7 +241,11 @@ def run(params):
     model.share_memory()
     gru_model.share_memory()
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
+    if params['optimizer'] == 'adam':
+        optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
+    elif params['optimizer'] == 'sgd':
+        optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'])
+
     X_train, y_train = dataloader.load_normalized_data('../train20.txt',
                                                        embeddings='gensim')
     X_train = X_train[:params['nb_data']]
@@ -277,12 +281,13 @@ if __name__ == '__main__':
         'lambdas': (20, 1, 0, 2),
         'nb_data': 3,
         'epochs': 1,
-        'n_processes': 1,
+        'n_processes': 2,
         'loss2_margin': 1,
         'scoring_hidden_size': 128,     # Set to None for no hidden layer
         'batch_size': 2,
         'verbose': True,
-        'epochs_per_checkpoint': 1
+        'epochs_per_checkpoint': 1,
+        'optimizer': 'sgd'
     }
 
     run(params)
