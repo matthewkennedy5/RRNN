@@ -131,3 +131,7 @@ def structures_are_equal(structure1, structure2):
     tree1 = structure2tree(structure1)
     tree2 = structure2tree(structure2)
     return trees_are_isomorphic(tree1, tree2)
+
+
+def structure_is_gru(structure):
+    return structures_are_equal(structure, GRU_STRUCTURE)
