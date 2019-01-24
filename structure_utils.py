@@ -1,3 +1,4 @@
+import numpy as np
 
 LEFT_NAME = 0
 RIGHT_NAME = 1
@@ -99,13 +100,14 @@ def trees_are_isomorphic(tree1, tree2):
         return tree2 is None
     if tree2 is None:
         return tree1 is None
-    # Check basic properties of the current node
-    if tree1.binary_func != tree2.binary_func or tree1.activation != tree2.activation:
-        return False
+    # Check basic properties of the current node. # This doesn't actually matter for the structure
+    # if tree1.binary_func != tree2.binary_func or tree1.activation != tree2.activation:
+    #     differences += 1
     # Check if they're the same leaf node
-    if (tree1.is_leaf() or tree2.is_leaf()) and tree1 != tree2:
-        return False
+    # if (tree1.is_leaf() or tree2.is_leaf()) and tree1 != tree2:
+    #     return False
     # Recursive case
+
     return ((trees_are_isomorphic(tree1.left, tree2.left) and
                 trees_are_isomorphic(tree1.right, tree2.right)) or
             (trees_are_isomorphic(tree1.left, tree2.right) and
@@ -135,3 +137,32 @@ def structures_are_equal(structure1, structure2):
 
 def structure_is_gru(structure):
     return structures_are_equal(structure, GRU_STRUCTURE)
+
+
+def n_differences(structure1, structure2):
+    if not structures_are_equal(structure1, structure2):
+        raise ValueError('Structures are not isomorphic')
+
+    tree1 = structure2tree(structure1)
+    tree2 = structure2tree(structure2)
+    return n_tree_differences(tree1, tree2)
+
+# TODO: Account for Lk, Rk, bk
+def n_tree_differences(tree1, tree2):
+    if tree1 is None and tree2 is None:
+        return 0
+    elif tree1 is None or tree2 is None:
+        return np.Inf
+
+    differences = 0
+    if tree1.binary_func != tree2.binary_func:
+        differences += 1
+    if tree1.activation != tree2.activation:
+        differences += 1
+
+    child_diffs = [n_tree_differences(tree1.left, tree2.left) + n_tree_differences(tree1.right, tree2.right),
+                   n_tree_differences(tree1.left, tree2.right) + n_tree_differences(tree1.right, tree2.left)]
+
+    return differences + min(child_diffs)
+
+
