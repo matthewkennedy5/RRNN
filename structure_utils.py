@@ -122,6 +122,8 @@ def structures_are_equal(structure1, structure2):
         structure1 - A tree structure
         structure2 - A tree structure
     """
+    if not (isinstance(structure1, list) and isinstance(structure2, list)):
+        raise TypeError('structures_are_equal takes type list.')
     # TODO: Do different permutations of Lk and Rk count as the same tree?
     if len(structure1) != len(structure2):
         return False
