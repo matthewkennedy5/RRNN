@@ -213,7 +213,7 @@ class RRNNTrainer:
             for l in range(len(pred_tree_list)):
                 loss4 += tree_methods.tree_distance_metric_list(pred_tree_list[l],
                                                                 target_tree_list[l],
-                                                                samples=5,
+                                                                samples=self.params['samples'],
                                                                 device=device)
 
         # Record the structure
@@ -287,7 +287,8 @@ if __name__ == '__main__':
         'batch_size': 2,
         'verbose': True,
         'epochs_per_checkpoint': 1,
-        'optimizer': 'sgd'
+        'optimizer': 'sgd',
+        'samples': 10
     }
 
     run(params)
