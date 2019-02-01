@@ -221,6 +221,7 @@ class RRNNTrainer:
         is_gru = structures_are_equal(structure, GRU_STRUCTURE)
         if is_gru:
             structure_file.write('Achieved GRU structure!\n')
+            print('\nAcheived GRU structure!\n')
         structure_file.write(str(structure) + '\n\n')
         structure_file.close()
 
@@ -248,13 +249,15 @@ def run(params):
 
     X_train, y_train = dataloader.load_normalized_data('../train20.txt',
                                                        embeddings='gensim')
-    X_train = X_train[:params['nb_data']]
-    y_train = y_train[:params['nb_data']]
+
     for i in range(len(X_train)):
         X_train[i] = X_train[i].to(device)
         y_train[i] = torch.tensor(y_train[i], device=device)
     X_train = torch.stack(X_train, dim=0)
     y_train = torch.stack(y_train, dim=0)
+    indices = np.random.choice(range(len(X_train)), size=params['nb_data'], replace=False)
+    X_train = X_train[indices]
+    y_train = y_train[indices]
 
     trainer = RRNNTrainer(model, gru_model, X_train, y_train, optimizer, params)
     try:
@@ -279,15 +282,15 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
-        'nb_data': 3,
+        'nb_data': 5,
         'epochs': 1,
-        'n_processes': 2,
+        'n_processes': 8,
         'loss2_margin': 1,
         'scoring_hidden_size': 128,     # Set to None for no hidden layer
-        'batch_size': 2,
+        'batch_size': 3,
         'verbose': True,
         'epochs_per_checkpoint': 1,
-        'optimizer': 'sgd',
+        'optimizer': 'adam',
         'samples': 10
     }
 
