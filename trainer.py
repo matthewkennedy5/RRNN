@@ -98,14 +98,15 @@ class RRNNTrainer:
             for i in range(len(X_batches)):
                 X_batch = X_batches[i]
                 y_batch = y_batches[i]
-                p = mp.Process(target=self.train_batch, args=(X_batch, y_batch))
-                p.start()
-                processes.append(p)
+
+                if self.params['debug']:
+                    self.train_batch(X_batch, y_batch)
+                else:
+                    p = mp.Process(target=self.train_batch, args=(X_batch, y_batch))
+                    p.start()
+                    processes.append(p)
             for p in processes:
                 p.join()
-
-                # For debugging
-                # self.train_batch(X_batch, y_batch)
 
         self.model.eval()
 
@@ -220,7 +221,6 @@ class RRNNTrainer:
         structure_file = open('structure.txt', 'a')
         is_gru = structures_are_equal(structure, GRU_STRUCTURE)
         if is_gru:
-            structure_file.write('Achieved GRU structure!\n')
             print('\nAcheived GRU structure!\n')
         structure_file.write(str(structure) + '\n\n')
         structure_file.close()
@@ -272,6 +272,7 @@ def run(params):
 
     torch.save(model.state_dict(), 'final_weights.pt')
 
+
 if __name__ == '__main__':
 
     dirname = sys.argv[1]
@@ -282,16 +283,17 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
-        'nb_data': 5,
+        'nb_data': 5000,
         'epochs': 1,
-        'n_processes': 8,
+        'n_processes': 1,
         'loss2_margin': 1,
         'scoring_hidden_size': 128,     # Set to None for no hidden layer
-        'batch_size': 3,
+        'batch_size': 1,
         'verbose': True,
-        'epochs_per_checkpoint': 1,
+        'epochs_per_checkpoint': 100,
         'optimizer': 'adam',
-        'samples': 10
+        'samples': 10,
+        'debug': False  # Turns multiprocessing off so pdb works
     }
 
     run(params)
