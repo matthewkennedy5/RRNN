@@ -180,6 +180,7 @@ def tree_distance_metric_list(pred_tree, target_tree, order=True, samples=10, de
         #                          '110010011',
         #                          '111100110',
         #                          '100101101']
+        # indicator_string_list = ['010010000']
         for indicator_string in indicator_string_list:
             res = 0
             new_target_tree = target_tree.copy()
@@ -200,10 +201,10 @@ def tree_distance_metric_list(pred_tree, target_tree, order=True, samples=10, de
             res_list.append(res)
         # return torch.tensor(min(res_list)/len(pred_tree), device=device)
 
-        with open('TMD_losses.txt', 'a') as f:
-            f.write('%f '*10 % tuple([loss.item() for loss in res_list]) + '\n')
-            f.close()
+        # with open('TDM_losses.txt', 'a') as f:
+        #     f.write('%f '*10 % tuple([loss.item() for loss in res_list]) + '\n')
+        #     f.close()
 
         tree_distance = min(res_list) / len(pred_tree)
-        return tree_distance.clone().detach()
+        return tree_distance
 
