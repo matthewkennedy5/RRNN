@@ -42,10 +42,9 @@ def retrieve_activation_func(string, vec, multiplier):
         return a vector with given activation function
     '''
     if vec.abs().max() > 1 and string not in ['tanh', 'sigmoid']:
-        max_size = 2
-        # if vec.abs().max() > max_size:
-        #     print('\nVector element > %f:' % max_size)
-        #     print(vec[vec.abs() > max_size])
+        if vec.abs().max() > 1.05:
+            print('\nVector element > 1.05: ')
+            print(vec[vec.abs() > 1])
     if string == 'tanh':
         return multiplier * torch.tanh(vec)
     elif string == 'sigmoid':
@@ -213,26 +212,7 @@ class RRNNforGRUCell(nn.Module):
         return G, G_structure, second_vectors, components_list
 
     def forward(self, x, h_prev):
-        # _, G_structure, second_vectors, _ = self.tree_structure_search(x, h_prev)
-
-        ################## Fixed Tpred experiment ##############################
-        # This should be the same isomorphism as the predictive tree from GRUtree_pytorch.
-        G_structure = [['x', 'h', 0, 'add', 'sigmoid', 'G0'],
-                       ['x', 'h', 1, 'add', 'sigmoid', 'G1'],
-                       ['x', 'h', 0, 'add', 'sigmoid', 'G2'],
-                       ['G1', 'h', 3, 'mul', 'identity', 'G3'],
-                       ['G3', 'x', 2, 'add', 'tanh', 'G4'],
-                       ['G0', '0', 3, 'add', 'minus', 'G5'],
-                       ['G4', 'G5', 3, 'mul', 'identity', 'G6'],
-                       ['G2', 'h', 3, 'mul', 'identity', 'G7'],
-                       ['G6', 'G7', 3, 'add', 'identity', 'G8']]
-
-        # from structure_utils import n_differences, GRU_STRUCTURE
-        # assert(n_differences(G_structure, GRU_STRUCTURE) == 0)
-
-        second_vectors = [torch.zeros(x.size()) for i in range(9)]  # Loss2 is off so this doesn't matter
-        ########################################################################
-
+        G, G_structure, second_vectors, components_list = self.tree_structure_search(x, h_prev)
         G_node = [] # containing the Node class instance
         Gprime_node = []
 
@@ -297,7 +277,7 @@ class RRNNforGRU(nn.Module):
             scores.append(scores_list)
 
         return (self.output_layer(h_next), h_list, pred_tree_list, scores_list,
-               second_scores_list, structures)
+               second_scores_list, G_structure)
 
 
 if __name__ == '__main__':
@@ -314,7 +294,6 @@ if __name__ == '__main__':
 
     G, G_structure, components_list = model.tree_structure_search(x, hidden)
     h_next, G_forward, G_structure, components_list_forward, G_node, scores_list = model(x, hidden)
-
 
 
 
