@@ -7,6 +7,7 @@ import torch
 import torch.multiprocessing as mp
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
+from torch.optim.lr_scheduler import StepLR
 
 # import tree_methods_parallel as tree_methods
 import tree_methods
@@ -43,11 +44,13 @@ class RRNNTrainer:
         # self.loss = torch.nn.KLDivLoss()
         self.loss = torch.nn.CrossEntropyLoss()
         self.iter_count = 0
+        self.lr_scheduler = StepLR(self.optimizer, step_size=100, gamma=0.9)
 
     def batch_generator(self):
         epochs = self.params['epochs']
         batch_size = self.params['batch_size']
         for epoch in range(epochs):
+            print('Iteration %d: ' % epoch, end='')
             # Shuffle data
             shuffle_order = np.arange(len(self.X_train))
             np.random.shuffle(shuffle_order)
@@ -121,7 +124,7 @@ class RRNNTrainer:
             x = X_batch[i]
             y = y_batch[i]
             loss = self.train_step(x, y)
-            loss_fn += sum(loss)
+            loss_fn += loss[0] + loss[1] + loss[2] + loss[3]
             # TODO: Clean this up
             for l in range(4):
                 try:
@@ -135,8 +138,7 @@ class RRNNTrainer:
 
         loss_fn.backward()
         self.optimizer.step()
-
-        self.iter_count += 1
+        # self.lr_scheduler.step()
 
         # Save out the loss as we train because multiprocessing is weird with
         # instance variables
@@ -147,6 +149,10 @@ class RRNNTrainer:
 
         if self.params['verbose']:
             print('.', end='', flush=True)
+        print(loss_fn.item())
+
+        # Print norm of difference between target and predictive L, R, b weights
+
 
     def train_step(self, X, y):
         """Performs a single iteration of training.
@@ -162,7 +168,8 @@ class RRNNTrainer:
                 is the GRU structure after the iteration.
         """
         # forward pass and compute loss
-        out, h_list, pred_tree_list, scores, second_scores, structure = self.model(X)
+        out, h_list, pred_tree_list, scores, second_scores, structures = self.model(X)
+        structure = structures[-1]
 
         # forward pass of traditional GRU
         gru_h_list = self.gru_model(X)[0]
@@ -211,7 +218,9 @@ class RRNNTrainer:
 
         loss4 = 0
         if self.lamb4 != 0:
-            for l in range(len(pred_tree_list)):
+            # for l in range(len(pred_tree_list)):
+            # Only considering the first time step in this experiment
+            for l in range(1):
                 loss4 += tree_methods.tree_distance_metric_list(pred_tree_list[l],
                                                                 target_tree_list[l],
                                                                 samples=self.params['samples'],
@@ -220,8 +229,8 @@ class RRNNTrainer:
         # Record the structure
         structure_file = open('structure.txt', 'a')
         is_gru = structures_are_equal(structure, GRU_STRUCTURE)
-        if is_gru:
-            print('\nAcheived GRU structure!\n')
+        # if is_gru:
+        #     print('\nAcheived GRU structure!\n')
         structure_file.write(str(structure) + '\n\n')
         structure_file.close()
 
@@ -258,6 +267,8 @@ def run(params):
     indices = np.random.choice(range(len(X_train)), size=params['nb_data'], replace=False)
     X_train = X_train[indices]
     y_train = y_train[indices]
+    # X_train = X_train[:params['nb_data']]     # For no randomization
+    # y_train = y_train[:params['nb_data']]
 
     trainer = RRNNTrainer(model, gru_model, X_train, y_train, optimizer, params)
     try:
@@ -280,20 +291,21 @@ if __name__ == '__main__':
     os.chdir(dirname)
 
     params = {
-        'learning_rate': 1e-5,
-        'multiplier': 1e-3,
-        'lambdas': (20, 1, 0, 2),
-        'nb_data': 5000,
-        'epochs': 1,
+        'learning_rate': 1e-2,
+        'lr_decay': 0.9,
+        'multiplier': 1e-4,
+        'lambdas': (0, 0, 0, 1),
+        'nb_data': 1,
+        'epochs': 5000,
         'n_processes': 1,
         'loss2_margin': 1,
         'scoring_hidden_size': 128,     # Set to None for no hidden layer
         'batch_size': 1,
-        'verbose': True,
+        'verbose': False,
         'epochs_per_checkpoint': 100,
         'optimizer': 'adam',
         'samples': 10,
-        'debug': False  # Turns multiprocessing off so pdb works
+        'debug': True  # Turns multiprocessing off so pdb works
     }
 
     run(params)
