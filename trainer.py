@@ -154,6 +154,7 @@ class RRNNTrainer:
         # Print norm of difference between target and predictive L, R, b weights
 
 
+
     def train_step(self, X, y):
         """Performs a single iteration of training.
 
@@ -292,7 +293,7 @@ if __name__ == '__main__':
 
     params = {
         'learning_rate': 1e-2,
-        'lr_decay': 0.9,
+        # 'lr_decay': 0.9,
         'multiplier': 1e-4,
         'lambdas': (0, 0, 0, 1),
         'nb_data': 1,
