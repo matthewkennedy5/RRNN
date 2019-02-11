@@ -44,7 +44,7 @@ def GRUtree_pytorch(x, h, weight_ih_l0, weight_hh_l0, bias_ih_l0, bias_hh_l0):
     r = torch.sigmoid(torch.mm(x, W_ir) + b_ir + torch.mm(h, W_hr) + b_hr)
     z = torch.sigmoid(torch.mm(x, W_iz) + b_iz + torch.mm(h, W_hz) + b_hz)
     rh = r*h
-    h_tilde = torch.tanh(torch.mm(x, W_in) + b_in + torch.mm(rh, W_hn) + r*b_hn)
+    h_tilde = torch.tanh(torch.mm(x, W_in) + b_in + torch.mm(rh, W_hn) + b_hn)
     z1 = 1-z
     zh = z*h
     zh_tilde = z1*h_tilde
