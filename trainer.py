@@ -152,8 +152,29 @@ class RRNNTrainer:
         print(loss_fn.item())
 
         # Print norm of difference between target and predictive L, R, b weights
+        W_ir, W_iz, W_in = self.gru_model.weight_ih_l0.chunk(3)
+        W_hr, W_hz, W_hn = self.gru_model.weight_hh_l0.chunk(3)
+        b_ir, b_iz, b_in = self.gru_model.bias_ih_l0.chunk(3)
+        b_hr, b_hz, b_hn = self.gru_model.bias_hh_l0.chunk(3)
 
+        # Target weights
+        I = torch.eye(HIDDEN_SIZE)
+        L = [W_iz, W_ir, W_hn, I]
+        R = [W_hz, W_hr, W_in, I]
+        # TODO: r*b_hn?
+        b = [b_hz, b_hr, b_hn, torch.zeros(HIDDEN_SIZE)]
 
+        # Predictive weights
+        L_pred = self.model.cell.L_list
+        R_pred = self.model.cell.R_list
+        b_pred = self.model.cell.b_list
+        diff = 0
+        for i in range(4):
+            diff += torch.sum((L[0] - L_pred[0]) ** 2)
+            diff += torch.sum((R[0] - R_pred[0]) ** 2)
+            diff += torch.sum((b[0] - b_pred[0]) ** 2)
+
+        print('Weight difference: %f' % diff)
 
     def train_step(self, X, y):
         """Performs a single iteration of training.
