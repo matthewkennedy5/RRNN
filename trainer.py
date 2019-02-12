@@ -170,13 +170,15 @@ class RRNNTrainer:
         L_pred = self.model.cell.L_list
         R_pred = self.model.cell.R_list
         b_pred = self.model.cell.b_list
+
         diff = 0
         for i in range(4):
             diff += torch.sum((L[0] - L_pred[0]) ** 2)
             diff += torch.sum((R[0] - R_pred[0]) ** 2)
             diff += torch.sum((b[0] - b_pred[0]) ** 2)
 
-        print('Weight difference: %f' % diff)
+        with open('weight_diff.txt', 'a') as f:
+            f.write('%f\n' % diff)
         # from matplotlib import pyplot as plt
         # plt.figure()
         # plt.imshow((L[0] - L_pred[0]).detach().numpy(), cmap='gray')
