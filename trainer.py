@@ -156,13 +156,15 @@ class RRNNTrainer:
         W_hr, W_hz, W_hn = self.gru_model.weight_hh_l0.chunk(3)
         b_ir, b_iz, b_in = self.gru_model.bias_ih_l0.chunk(3)
         b_hr, b_hz, b_hn = self.gru_model.bias_hh_l0.chunk(3)
+        x = X_batch[0, :, 0, :]
+        r = torch.sigmoid(torch.mm(x, W_ir) + b_ir + b_hr)
 
         # Target weights
         I = torch.eye(HIDDEN_SIZE)
         L = [W_iz, W_ir, W_hn, I]
         R = [W_hz, W_hr, W_in, I]
         # TODO: r*b_hn?
-        b = [b_hz, b_hr, b_hn, torch.zeros(HIDDEN_SIZE)]
+        b = [b_hz, b_hr, b_in + r*b_hn, torch.zeros(HIDDEN_SIZE)]
 
         # Predictive weights
         L_pred = self.model.cell.L_list
@@ -175,6 +177,10 @@ class RRNNTrainer:
             diff += torch.sum((b[0] - b_pred[0]) ** 2)
 
         print('Weight difference: %f' % diff)
+        # from matplotlib import pyplot as plt
+        # plt.figure()
+        # plt.imshow((L[0] - L_pred[0]).detach().numpy(), cmap='gray')
+        # plt.show()
 
     def train_step(self, X, y):
         """Performs a single iteration of training.
@@ -314,11 +320,11 @@ if __name__ == '__main__':
 
     params = {
         'learning_rate': 1e-2,
-        # 'lr_decay': 0.9,
-        'multiplier': 1e-4,
+        # 'lr_decay': 1,   # How much to decay every 100 iterations
+        'multiplier': 1,
         'lambdas': (0, 0, 0, 1),
         'nb_data': 1,
-        'epochs': 5000,
+        'epochs': 1000000,
         'n_processes': 1,
         'loss2_margin': 1,
         'scoring_hidden_size': 128,     # Set to None for no hidden layer
