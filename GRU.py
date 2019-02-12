@@ -217,15 +217,15 @@ class RRNNforGRUCell(nn.Module):
 
         ################## Fixed Tpred experiment ##############################
         # This should be the same isomorphism as the predictive tree from GRUtree_pytorch.
-        G_structure = [['x', 'h', 0, 'add', 'sigmoid', 'G0'],
-                       ['x', 'h', 1, 'add', 'sigmoid', 'G1'],
-                       ['x', 'h', 0, 'add', 'sigmoid', 'G2'],
-                       ['G1', 'h', 3, 'mul', 'identity', 'G3'],
-                       ['G3', 'x', 2, 'add', 'tanh', 'G4'],
-                       ['G0', '0', 3, 'add', 'minus', 'G5'],
-                       ['G4', 'G5', 3, 'mul', 'identity', 'G6'],
-                       ['G2', 'h', 3, 'mul', 'identity', 'G7'],
-                       ['G6', 'G7', 3, 'add', 'identity', 'G8']]
+        G_structure = [['x', 'h', 0, 'add', 'sigmoid', 'G0'],   # z1
+                       ['x', 'h', 1, 'add', 'sigmoid', 'G1'],   # r
+                       ['x', 'h', 0, 'add', 'sigmoid', 'G2'],   # z2
+                       ['G1', 'h', 3, 'mul', 'identity', 'G3'], # r*h
+                       ['G3', 'x', 2, 'add', 'tanh', 'G4'], # h_tilde
+                       ['G0', '0', 3, 'add', 'minus', 'G5'],    # 1-z
+                       ['G4', 'G5', 3, 'mul', 'identity', 'G6'],    # (1-z)*h_tilde
+                       ['G2', 'h', 3, 'mul', 'identity', 'G7'], # z*h
+                       ['G6', 'G7', 3, 'add', 'identity', 'G8']]    # h_t
 
         # from structure_utils import n_differences, GRU_STRUCTURE
         # assert(n_differences(G_structure, GRU_STRUCTURE) == 0)
