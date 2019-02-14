@@ -1,0 +1,43 @@
+History of questions, experiments, and results in case I forget.
+
+
+Q: Can the TDM loss train to 0 with the predictive tree fixed to be the same as the target tree (which is also fixed) (only the weights can be different).
+
+Branch: TDMLoss0
+Output: TDMLossToZero
+
+E: Training on 1 data point for many iterations with the trees fixed, only tracking TDM loss for the first time step. TDM loss decreased from 1e8 to 100, but has not yet gone to 0. Hopefully this is because it's hitting a local minimum. The weights are totally different from the target weights.
+
+R: Have not seen 0 yet.
+
+
+Q: Is the cause of the ~1000 TDM loss on the full dataset (fixed target but not pred) because of the multiplier?
+
+Branch: PredTreeZeros
+Output:
+
+E: 1. Multiply the target tree by the multiplier (and all activations of pred) to see if loss goes to 0
+   2. Set the multiplier to 1
+
+R: Almost goes to 0 when the multiplier is 1
+
+
+Q: Why is the TDM loss so spikey?
+
+E: Run it again and print out the vectors to see what's up
+
+R:
+
+
+Q: What does the validation loss/accuracy look like?
+
+E: Run with 1000 validation examples and plot
+
+R:
+
+
+Q: Try softmax/gumbel method.
+
+E:
+
+R:
