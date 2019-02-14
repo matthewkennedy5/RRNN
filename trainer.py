@@ -285,7 +285,7 @@ if __name__ == '__main__':
         'lambdas': (20, 1, 0, 2),
         'nb_data': 5000,
         'epochs': 1,
-        'n_processes': 1,
+        'n_processes': 24,
         'loss2_margin': 1,
         'scoring_hidden_size': 128,     # Set to None for no hidden layer
         'batch_size': 1,

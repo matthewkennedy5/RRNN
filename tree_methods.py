@@ -152,7 +152,7 @@ def tree_distance_metric(tree1, tree2):
     max_depth = max(depth(tree1), depth(tree2))
     mat1 = torch.zeros(2**max_depth-1, tree1.vector.shape[1])
     mat2 = torch.zeros(2**max_depth-1, tree1.vector.shape[1])
-    mat1 = tree_matrixize(tree1, mat1)
+    # mat1 = tree_matrixize(tree1, mat1) # Keeping the predictive tree as all 0s for this experiment
     mat2 = tree_matrixize(tree2, mat2)
     return (mat1-mat2).norm() ** 2
 
