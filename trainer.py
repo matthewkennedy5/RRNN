@@ -143,10 +143,10 @@ class RRNNTrainer:
         # Save out the loss as we train because multiprocessing is weird with
         # instance variables
         train_loss = (loss_hist[0].item(), loss_hist[1].item(), loss_hist[2], loss_hist[3])
-        val_loss = self.validation_loss()
         with open(LOSS_FILE, 'a') as f:
             f.write('Train: %f %f %f %f' % train_loss)
             if len(self.X_val) > 0:
+                val_loss = self.validation_loss()
                 f.write('Val: %f %f %f %f' % val_loss)
         f.close()
 
