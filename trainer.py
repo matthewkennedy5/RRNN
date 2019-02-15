@@ -161,7 +161,13 @@ class RRNNTrainer:
         """
         with torch.no_grad():
             n_val = len(self.X_val)
-        return (0, 0, 0, 0)
+            val_loss = np.zeros(4)
+            for i in range(n_val):
+                x = self.X_val[i]
+                y = self.y_val[i]
+                val_loss += self.train_step(x, y)
+            val_loss /= n_val
+        return tuple(val_loss)
 
     def train_step(self, X, y):
         # TODO: Update this documentation to make it clear that it doesn't update weights
@@ -172,10 +178,10 @@ class RRNNTrainer:
             y - True value for the final character that we're trying to predict.
 
         Returns:
-            loss - Numpy array containing [loss1, loss2, loss3, loss4] all
-                multiplied by their respective lambdas
-            is_gru - Boolean that is True if the structure of our RRNN
-                is the GRU structure after the iteration.
+            loss1 - Cross-entropy classification loss
+            loss2 - SVM-like score margin loss
+            loss3 - L2 regularization loss
+            loss4 - Tree Distance Metric loss
         """
         # forward pass and compute loss
         out, h_list, pred_tree_list, scores, second_scores, structure = self.model(X)
@@ -293,8 +299,8 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
-        'nb_data': 4000,
-        'nb_val': 1000,
+        'nb_data': 4998,
+        'nb_val': 0,
         'epochs': 1,
         'n_processes': 1,
         'loss2_margin': 1,
