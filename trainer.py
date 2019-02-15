@@ -32,11 +32,13 @@ class RRNNTrainer:
         X_train - Training data. List of 3D torch tensors.
         y_train - Training labels (one-hot)
     """
-    def __init__(self, model, gru_model, X_train, y_train, optimizer, params):
+    def __init__(self, model, gru_model, X_train, y_train, X_val, y_val, optimizer, params):
         self.model = model
         self.gru_model = gru_model
         self.X_train = X_train
         self.y_train = y_train
+        self.X_val = X_val
+        self.y_val = y_val
         self.optimizer = optimizer
         self.params = params
         self.lamb1, self.lamb2, self.lamb3, self.lamb4 = params['lambdas']
@@ -140,15 +142,29 @@ class RRNNTrainer:
 
         # Save out the loss as we train because multiprocessing is weird with
         # instance variables
+        train_loss = (loss_hist[0].item(), loss_hist[1].item(), loss_hist[2], loss_hist[3])
+        val_loss = self.validation_loss()
         with open(LOSS_FILE, 'a') as f:
-            f.write('%f %f %f %f\n' % (loss_hist[0].item(), loss_hist[1].item(),
-                                       loss_hist[2], loss_hist[3]))
+            f.write('Train: %f %f %f %f' % train_loss)
+            if len(self.X_val) > 0:
+                f.write('Val: %f %f %f %f' % val_loss)
         f.close()
 
         if self.params['verbose']:
             print('.', end='', flush=True)
 
+    def validation_loss(self):
+        """Runs inference over the validation set to calculate the validation loss.
+
+        Returns:
+            val_loss - tuple of loss values for each loss1, 2, 3, etc.
+        """
+        with torch.no_grad():
+            n_val = len(self.X_val)
+        return (0, 0, 0, 0)
+
     def train_step(self, X, y):
+        # TODO: Update this documentation to make it clear that it doesn't update weights
         """Performs a single iteration of training.
 
         Inputs:
@@ -200,7 +216,7 @@ class RRNNTrainer:
                     # vectors we have. We divide by LOSS2_MARGIN to scale
                     # the loss term to be between 0 and 1, so it LOSS2_MARGIN
                     # doesn't affect the overall scale of loss2.
-                    value = (margin - difference) / margin
+                    value = torch.clamp(margin - difference, min=0) / margin
                     if value > 0:
                         loss2 += value
 
@@ -260,7 +276,7 @@ def run(params):
     X_train = X_train[indices]
     y_train = y_train[indices]
 
-    trainer = RRNNTrainer(model, gru_model, X_train, y_train, optimizer, params)
+    trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, optimizer, params)
     try:
         trainer.train(params['epochs'], n_processes=params['n_processes'])
     except ValueError:
