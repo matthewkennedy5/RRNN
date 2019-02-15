@@ -247,8 +247,9 @@ def run(params):
     elif params['optimizer'] == 'sgd':
         optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'])
 
-    X_train, y_train = dataloader.load_normalized_data('../train20.txt',
-                                                       embeddings='gensim')
+    X_train, y_train, X_val, y_val = dataloader.load_normalized_data('../train20.txt',
+                                                                     n_val=params['nb_val'],
+                                                                     embeddings='gensim')
 
     for i in range(len(X_train)):
         X_train[i] = X_train[i].to(device)
@@ -283,7 +284,8 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
-        'nb_data': 5000,
+        'nb_data': 4000,
+        'nb_val': 1000,
         'epochs': 1,
         'n_processes': 1,
         'loss2_margin': 1,
@@ -293,7 +295,7 @@ if __name__ == '__main__':
         'epochs_per_checkpoint': 100,
         'optimizer': 'adam',
         'samples': 10,
-        'debug': False  # Turns multiprocessing off so pdb works
+        'debug': True  # Turns multiprocessing off so pdb works
     }
 
     run(params)

@@ -52,15 +52,23 @@ def load_data(filename, embeddings='gensim'):
     return X_train, y_train
 
 
-def load_normalized_data(filename, embeddings='gensim'):
+def load_normalized_data(filename, n_val, embeddings='gensim'):
     X_train, y_train = load_data(filename, embeddings)
+    X_val = X_train[-n_val:]    # Split of the last n_val examples for validation
+    y_val = y_train[-n_val:]
+    X_train = X_train[:-n_val]  # Remove the validation examples from the training
+    y_train = y_train[:-n_val]
+
     tmp = torch.cat(X_train, dim=1).reshape(-1, 100).numpy()
     tmp_mean = np.mean(tmp, axis=0)
     tmp_std = np.std(tmp, axis=0)
     for i in range(len(X_train)):
         X_train[i] = (X_train[i]-torch.from_numpy(tmp_mean))/torch.from_numpy(tmp_std)
-    return X_train, y_train
+    for i in range(len(X_val)):
+        X_val[i] = (X_val[i] - torch.from_numpy(tmp_mean)) / torch.from_numpy(tmp_std)
+    return X_train, y_train, X_val, y_val
 
 
 if __name__ == '__main__':
     X_train, y_train = load_data('train20.txt')
+
