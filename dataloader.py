@@ -53,7 +53,23 @@ def load_data(filename, embeddings='gensim'):
 
 
 def load_normalized_data(filename, n_train, n_val, device, embeddings='gensim', shuffle=True):
+    """Loads a version of the dataset that has been normalized.
 
+    Inputs:
+        filename - Name of a file containing rows of text, the last character of
+            which will be used as the truth.
+        n_train - Desired number of training sequences.
+        n_val - Desired number of validation sequences.
+        device - torch.device to put the tensors on
+        embeddings - 'gensim' for 100-dimensional or 'magic' for 300-dimensional
+        shuffle - Whether to shuffle the training data
+
+    Returns:
+        X_train - Training x tensor
+        y_train - Training y tensor (one-hot)
+        X_val - Validation data
+        y_val -
+    """
     X_train, y_train = load_data(filename, embeddings)
     X_val = X_train[-n_val:]    # Split of the last n_val examples for validation
     y_val = y_train[-n_val:]
