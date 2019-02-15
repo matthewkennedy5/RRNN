@@ -264,17 +264,10 @@ def run(params):
         optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'])
 
     X_train, y_train, X_val, y_val = dataloader.load_normalized_data('../train20.txt',
+                                                                     n_train=params['nb_data'],
                                                                      n_val=params['nb_val'],
+                                                                     device=device,
                                                                      embeddings='gensim')
-
-    for i in range(len(X_train)):
-        X_train[i] = X_train[i].to(device)
-        y_train[i] = torch.tensor(y_train[i], device=device)
-    X_train = torch.stack(X_train, dim=0)
-    y_train = torch.stack(y_train, dim=0)
-    indices = np.random.choice(range(len(X_train)), size=params['nb_data'], replace=False)
-    X_train = X_train[indices]
-    y_train = y_train[indices]
 
     trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, optimizer, params)
     try:

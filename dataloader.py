@@ -52,7 +52,8 @@ def load_data(filename, embeddings='gensim'):
     return X_train, y_train
 
 
-def load_normalized_data(filename, n_val, embeddings='gensim'):
+def load_normalized_data(filename, n_train, n_val, device, embeddings='gensim', shuffle=True):
+
     X_train, y_train = load_data(filename, embeddings)
     X_val = X_train[-n_val:]    # Split of the last n_val examples for validation
     y_val = y_train[-n_val:]
@@ -66,6 +67,27 @@ def load_normalized_data(filename, n_val, embeddings='gensim'):
         X_train[i] = (X_train[i]-torch.from_numpy(tmp_mean))/torch.from_numpy(tmp_std)
     for i in range(len(X_val)):
         X_val[i] = (X_val[i] - torch.from_numpy(tmp_mean)) / torch.from_numpy(tmp_std)
+
+    # Convert X and y from lists to tensors of rank 4 and put them on the proper device
+    for i in range(len(X_train)):
+        X_train[i] = X_train[i].to(device)
+        y_train[i] = torch.tensor(y_train[i], device=device)
+
+    for i in range(len(X_val)):
+        X_val[i] = X_val[i].to(device)
+        y_val[i] = torch.tensor(y_val[i], device=device)
+
+    X_train = torch.stack(X_train, dim=0)
+    y_train = torch.stack(y_train, dim=0)
+    X_val = torch.stack(X_val, dim=0)
+    y_val = torch.stack(y_val, dim=0)
+
+    # Shuffle X_train and y_train in the same way
+    if shuffle:
+        indices = np.random.choice(range(len(X_train)), size=n_train, replace=False)
+        X_train = X_train[indices]
+        y_train = y_train[indices]
+
     return X_train, y_train, X_val, y_val
 
 
