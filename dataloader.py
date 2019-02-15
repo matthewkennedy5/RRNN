@@ -71,10 +71,10 @@ def load_normalized_data(filename, n_train, n_val, device, embeddings='gensim', 
         y_val -
     """
     X_train, y_train = load_data(filename, embeddings)
-    X_val = X_train[:-n_val]    # Split of the first n_val examples for validation
-    y_val = y_train[:-n_val]
-    X_train = X_train[-n_val:]  # Remove the validation examples from the training
-    y_train = y_train[-n_val:]
+    X_val = X_train[:n_val]    # Split of the first n_val examples for validation
+    y_val = y_train[:n_val]
+    X_train = X_train[n_val:]  # Remove the validation examples from the training
+    y_train = y_train[n_val:]
 
     tmp = torch.cat(X_train, dim=1).reshape(-1, 100).numpy()
     tmp_mean = np.mean(tmp, axis=0)
