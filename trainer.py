@@ -275,7 +275,7 @@ def run(params):
         optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'])
 
     X_train, y_train, X_val, y_val = dataloader.load_normalized_data('../train20.txt',
-                                                                     n_train=params['nb_data'],
+                                                                     n_train=params['nb_train'],
                                                                      n_val=params['nb_val'],
                                                                      device=device,
                                                                      embeddings='gensim')
@@ -304,8 +304,8 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
-        'nb_data': 4998,
-        'nb_val': 2,
+        'nb_train': 1000,
+        'nb_val': 200,
         'epochs': 1,
         'n_processes': 1,
         'loss2_margin': 1,
