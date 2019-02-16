@@ -45,7 +45,7 @@ class RRNNTrainer:
         self.lamb1, self.lamb2, self.lamb3, self.lamb4 = params['lambdas']
         # self.loss = torch.nn.KLDivLoss()
         self.loss = torch.nn.CrossEntropyLoss()
-        self.iter_count = 0
+        self.iter_count = torch.zeros(1, dtype=torch.int32).share_memory_()
 
     def batch_generator(self):
         epochs = self.params['epochs']
@@ -140,6 +140,7 @@ class RRNNTrainer:
         self.optimizer.step()
 
         self.iter_count += 1
+        print(self.iter_count)
 
         # Save out the loss as we train because multiprocessing is weird with
         # instance variables
@@ -158,12 +159,14 @@ class RRNNTrainer:
         if self.params['verbose']:
             print('.', end='', flush=True)
 
-    def validation_loss(self):
+    def validation_loss(self, verbose=True):
         """Runs inference over the validation set to calculate the validation loss.
 
         Returns:
             val_loss - tuple of loss values for each loss1, 2, 3, etc.
         """
+        if verbose:
+            print('[INFO] Evaluating the validation set...')
         with torch.no_grad():
             n_val = len(self.X_val)
             val_loss = np.zeros(4)
@@ -281,11 +284,7 @@ def run(params):
                                                                      embeddings='gensim')
 
     trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, optimizer, params)
-    try:
-        trainer.train(params['epochs'], n_processes=params['n_processes'])
-    except ValueError:
-        print('ValueError')
-        gru_count = -1
+    trainer.train(params['epochs'], n_processes=params['n_processes'])
 
     runtime = time.time() - start
     pickle.dump(runtime, open(RUNTIME_FILE, 'wb'))
@@ -305,9 +304,10 @@ if __name__ == '__main__':
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
         'nb_train': 1000,
-        'nb_val': 200,
+        'nb_val': 0,
+        'validate_every': 100,  # How often to evaluate the validation set
         'epochs': 1,
-        'n_processes': 1,
+        'n_processes': 4,
         'loss2_margin': 1,
         'scoring_hidden_size': 128,     # Set to None for no hidden layer
         'batch_size': 1,
@@ -315,7 +315,7 @@ if __name__ == '__main__':
         'epochs_per_checkpoint': 100,
         'optimizer': 'adam',
         'samples': 10,
-        'debug': True  # Turns multiprocessing off so pdb works
+        'debug': False  # Turns multiprocessing off so pdb works
     }
 
     run(params)
