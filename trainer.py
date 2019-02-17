@@ -115,6 +115,7 @@ class RRNNTrainer:
             for p in processes:
                 p.join()
 
+            print(self.iter_count, flush=True)
             # Record the validation loss and accuracy
             if len(self.X_val) > 0 and self.iter_count % self.params['validate_every'] == 0:
                 self.validate(n_processes=self.params['n_processes'])
@@ -335,19 +336,19 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
-        'nb_train': 1000,
-        'nb_val': 4,
-        'validate_every': 2,  # How often to evaluate the validation set (iterations)
+        'nb_train': 4900,
+        'nb_val': 10,
+        'validate_every': 10,  # How often to evaluate the validation set (iterations)
         'epochs': 1,
-        'n_processes': 4,
+        'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 128,     # Set to None for no hidden layer
         'batch_size': 1,
         'verbose': True,
-        'epochs_per_checkpoint': 100,
+        'epochs_per_checkpoint': 1,
         'optimizer': 'adam',
-        'samples': 10,
-        'debug': True  # Turns multiprocessing off so pdb works
+        'samples': 10,  # Number of target tree isomorphisms to sample in the TDM loss
+        'debug': False  # Turns multiprocessing off so pdb works
     }
 
     run(params)
