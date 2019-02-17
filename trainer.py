@@ -22,6 +22,7 @@ device = torch.device('cpu')
 TRAIN_LOSS_FILE = 'loss.txt'
 TRAIN_ACC_FILE = 'train_acc.txt'
 VAL_LOSS_FILE = 'val_loss.txt'
+VAL_ACC_FILE = 'val_acc.txt'
 HYPERPARAM_FILE = 'hyperparameters.pkl'
 RUNTIME_FILE = 'runtime.pkl'
 
@@ -157,12 +158,15 @@ class RRNNTrainer:
             f.write('%f\n' % train_acc)
         f.close()
 
-        # Record the validation loss
+        # Record the validation loss and accuracy
         if len(self.X_val) > 0 and self.iter_count % self.params['validate_every'] == 0:
+            val_loss, val_acc = self.validate()
             with open(VAL_LOSS_FILE, 'a') as f:
-                val_loss, val_acc = self.validate()
-                f.write('%d %f %f %f %f\n' % (self.iter_count, val_loss))
-        f.close()
+                f.write('%d %f %f %f %f\n' % ((self.iter_count.item(),) + val_loss))
+            f.close()
+            with open(VAL_ACC_FILE, 'a') as f:
+                f.write('%d %f' % (self.iter_count.item(), val_acc))
+            f.close()
 
         if self.params['verbose']:
             print('.', end='', flush=True)
@@ -186,7 +190,7 @@ class RRNNTrainer:
                 y = torch.argmax(self.y_val[i])  # Converting one-hot to index
                 loss, y_pred = self.train_step(x, y)
                 val_loss += loss
-                if y_pred == y:
+                if y_pred.item() == y.item():
                     val_acc += 1
             val_loss /= n_val
             val_acc /= n_val
@@ -194,8 +198,11 @@ class RRNNTrainer:
         return val_loss, val_acc
 
     def train_step(self, X, y):
-        # TODO: Update this documentation to make it clear that it doesn't update weights
-        """Performs a single iteration of training.
+        """Performs a single forward pass on one piece of data from a mini-batch.
+
+        To calculate the overall minibatch loss and gradient, train_step is called
+        on every data point in the minibatch, and the losses and gradients are
+        averaged together.
 
         Inputs:
             X - Embedded training sentence.
@@ -326,7 +333,7 @@ if __name__ == '__main__':
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
         'nb_train': 1000,
-        'nb_val': 1000,
+        'nb_val': 4,
         'validate_every': 2,  # How often to evaluate the validation set (iterations)
         'epochs': 1,
         'n_processes': 4,
