@@ -123,7 +123,7 @@ class RRNNTrainer:
         for i in range(X_batch.size()[0]):
             x = X_batch[i]
             y = y_batch[i]
-            loss = self.train_step(x, y)
+            loss, _ = self.train_step(x, y)
             loss_fn += sum(loss)
             # TODO: Clean this up
             for l in range(4):
@@ -138,9 +138,7 @@ class RRNNTrainer:
 
         loss_fn.backward()
         self.optimizer.step()
-
         self.iter_count += 1
-        print(self.iter_count)
 
         # Save out the loss as we train because multiprocessing is weird with
         # instance variables
@@ -150,32 +148,41 @@ class RRNNTrainer:
         f.close()
 
         # Record the validation loss
-        if len(self.X_val) > 0:
+        if len(self.X_val) > 0 and self.iter_count % self.params['validate_every'] == 0:
             with open(VAL_LOSS_FILE, 'a') as f:
-                val_loss = self.validation_loss()
-                f.write('%f %f %f %f\n' % val_loss)
+                val_loss, val_acc = self.validate()
+                pdb.set_trace()
+                f.write('%d %f %f %f %f\n' % (self.iter_count, val_loss))
         f.close()
 
         if self.params['verbose']:
             print('.', end='', flush=True)
 
-    def validation_loss(self, verbose=True):
-        """Runs inference over the validation set to calculate the validation loss.
+    def validate(self, verbose=True):
+        """Runs inference over the validation set periodically during training.
 
         Returns:
             val_loss - tuple of loss values for each loss1, 2, 3, etc.
+            val_acc - Accuracy on the validation set
         """
         if verbose:
             print('[INFO] Evaluating the validation set...')
         with torch.no_grad():
             n_val = len(self.X_val)
             val_loss = np.zeros(4)
-            for i in range(n_val):
+            val_acc = 0
+            from tqdm import tqdm
+            for i in tqdm(range(n_val)):
                 x = self.X_val[i]
-                y = self.y_val[i]
-                val_loss += self.train_step(x, y)
+                y = torch.argmax(self.y_val[i])  # Converting one-hot to index
+                loss, y_pred = self.train_step(x, y)
+                val_loss += loss
+                if y_pred == y:
+                    val_acc += 1
             val_loss /= n_val
-        return tuple(val_loss)
+            val_acc /= n_val
+            val_loss = tuple(val_loss)
+        return val_loss, val_acc
 
     def train_step(self, X, y):
         # TODO: Update this documentation to make it clear that it doesn't update weights
@@ -186,13 +193,16 @@ class RRNNTrainer:
             y - True value for the final character that we're trying to predict.
 
         Returns:
-            loss1 - Cross-entropy classification loss
-            loss2 - SVM-like score margin loss
-            loss3 - L2 regularization loss
-            loss4 - Tree Distance Metric loss
+            tuple of
+                loss1 - Cross-entropy classification loss
+                loss2 - SVM-like score margin loss
+                loss3 - L2 regularization loss
+                loss4 - Tree Distance Metric loss
+            y_pred - Predicted output character for this iteration
         """
-        # forward pass and compute loss
+        # forward pass and compute loss - out contains the logits for each possible char
         out, h_list, pred_tree_list, scores, second_scores, structure = self.model(X)
+        y_pred = torch.argmax(out)
 
         # forward pass of traditional GRU
         gru_h_list = self.gru_model(X)[0]
@@ -247,6 +257,8 @@ class RRNNTrainer:
                                                                 samples=self.params['samples'],
                                                                 device=device)
 
+        losses = (self.lamb1*loss1, self.lamb2*loss2, self.lamb3*loss3, self.lamb4*loss4)
+
         # Record the structure
         structure_file = open('structure.txt', 'a')
         is_gru = structures_are_equal(structure, GRU_STRUCTURE)
@@ -255,7 +267,7 @@ class RRNNTrainer:
         structure_file.write(str(structure) + '\n\n')
         structure_file.close()
 
-        return self.lamb1*loss1, self.lamb2*loss2, self.lamb3*loss3, self.lamb4*loss4
+        return losses, y_pred
 
 # Perform a training run using the given hyperparameters. Saves out data and model checkpoints
 # into the current directory.
@@ -304,8 +316,8 @@ if __name__ == '__main__':
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
         'nb_train': 1000,
-        'nb_val': 0,
-        'validate_every': 100,  # How often to evaluate the validation set
+        'nb_val': 1000,
+        'validate_every': 2,  # How often to evaluate the validation set (iterations)
         'epochs': 1,
         'n_processes': 4,
         'loss2_margin': 1,
@@ -315,7 +327,7 @@ if __name__ == '__main__':
         'epochs_per_checkpoint': 100,
         'optimizer': 'adam',
         'samples': 10,
-        'debug': False  # Turns multiprocessing off so pdb works
+        'debug': True  # Turns multiprocessing off so pdb works
     }
 
     run(params)
