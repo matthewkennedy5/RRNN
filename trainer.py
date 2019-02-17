@@ -15,6 +15,7 @@ from GRU import RRNNforGRU
 from structure_utils import structures_are_equal, GRU_STRUCTURE
 import pickle
 import pdb
+from tqdm import tqdm
 
 VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
@@ -97,6 +98,7 @@ class RRNNTrainer:
         """
         N = len(self.X_train)
         iterations = epochs * N
+        val_counter = 0     # Variable to help us keep track of when it's time to validate
         # set to training mode
         self.model.train()
 
@@ -115,10 +117,10 @@ class RRNNTrainer:
             for p in processes:
                 p.join()
 
-            print(self.iter_count, flush=True)
             # Record the validation loss and accuracy
-            if len(self.X_val) > 0 and self.iter_count % self.params['validate_every'] == 0:
-                self.validate(n_processes=self.params['n_processes'])
+            if len(self.X_val) > 0 and self.iter_count / self.params['validate_every'] >= val_counter:
+                self.validate()
+                val_counter += 1
 
         self.model.eval()
 
@@ -181,7 +183,7 @@ class RRNNTrainer:
             val_loss = np.zeros(4)
             val_acc = 0
 
-            for i in range(n_val):
+            for i in tqdm(range(n_val)):
                 x = self.X_val[i]
                 y = torch.argmax(self.y_val[i])  # Converting one-hot to index
                 loss, y_pred = self.train_step(x, y)
@@ -337,7 +339,7 @@ if __name__ == '__main__':
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
         'nb_train': 4900,
-        'nb_val': 10,
+        'nb_val': 100,
         'validate_every': 10,  # How often to evaluate the validation set (iterations)
         'epochs': 1,
         'n_processes': mp.cpu_count(),
