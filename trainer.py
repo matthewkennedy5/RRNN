@@ -47,6 +47,8 @@ class RRNNTrainer:
         self.lamb1, self.lamb2, self.lamb3, self.lamb4 = params['lambdas']
         # self.loss = torch.nn.KLDivLoss()
         self.loss = torch.nn.CrossEntropyLoss()
+        # TODO: Change this variable name--it's not a true iteration count. It
+        # increments multiple times per batch.
         self.iter_count = torch.zeros(1, dtype=torch.int32).share_memory_()
 
     def batch_generator(self):
@@ -113,6 +115,10 @@ class RRNNTrainer:
             for p in processes:
                 p.join()
 
+            # Record the validation loss and accuracy
+            if len(self.X_val) > 0 and self.iter_count % self.params['validate_every'] == 0:
+                self.validate(n_processes=self.params['n_processes'])
+
         self.model.eval()
 
     def train_batch(self, X_batch, y_batch):
@@ -158,25 +164,14 @@ class RRNNTrainer:
             f.write('%f\n' % train_acc)
         f.close()
 
-        # Record the validation loss and accuracy
-        if len(self.X_val) > 0 and self.iter_count % self.params['validate_every'] == 0:
-            val_loss, val_acc = self.validate()
-            with open(VAL_LOSS_FILE, 'a') as f:
-                f.write('%d %f %f %f %f\n' % ((self.iter_count.item(),) + val_loss))
-            f.close()
-            with open(VAL_ACC_FILE, 'a') as f:
-                f.write('%d %f' % (self.iter_count.item(), val_acc))
-            f.close()
-
         if self.params['verbose']:
             print('.', end='', flush=True)
 
-    def validate(self, verbose=True):
+    # TODO: Multiprocess this
+    def validate(self, verbose=True, n_processes=1):
         """Runs inference over the validation set periodically during training.
 
-        Returns:
-            val_loss - tuple of loss values for each loss1, 2, 3, etc.
-            val_acc - Accuracy on the validation set
+        Prints the validation loss and accuracy to their respective files.
         """
         if verbose:
             print('[INFO] Evaluating the validation set...')
@@ -184,18 +179,25 @@ class RRNNTrainer:
             n_val = len(self.X_val)
             val_loss = np.zeros(4)
             val_acc = 0
-            from tqdm import tqdm
-            for i in tqdm(range(n_val)):
+
+            for i in range(n_val):
                 x = self.X_val[i]
                 y = torch.argmax(self.y_val[i])  # Converting one-hot to index
                 loss, y_pred = self.train_step(x, y)
                 val_loss += loss
                 if y_pred.item() == y.item():
                     val_acc += 1
+
             val_loss /= n_val
             val_acc /= n_val
             val_loss = tuple(val_loss)
-        return val_loss, val_acc
+
+        with open(VAL_LOSS_FILE, 'a') as f:
+            f.write('%d %f %f %f %f\n' % ((self.iter_count.item(),) + val_loss))
+        f.close()
+        with open(VAL_ACC_FILE, 'a') as f:
+            f.write('%d %f' % (self.iter_count.item(), val_acc))
+        f.close()
 
     def train_step(self, X, y):
         """Performs a single forward pass on one piece of data from a mini-batch.
@@ -277,6 +279,7 @@ class RRNNTrainer:
         losses = (self.lamb1*loss1, self.lamb2*loss2, self.lamb3*loss3, self.lamb4*loss4)
 
         # Record the structure
+        # TODO: Put this in train_batch. We don't want this to happen during validation.
         structure_file = open('structure.txt', 'a')
         is_gru = structures_are_equal(structure, GRU_STRUCTURE)
         if is_gru:
