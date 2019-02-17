@@ -20,6 +20,7 @@ VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
 device = torch.device('cpu')
 TRAIN_LOSS_FILE = 'loss.txt'
+TRAIN_ACC_FILE = 'train_acc.txt'
 VAL_LOSS_FILE = 'val_loss.txt'
 HYPERPARAM_FILE = 'hyperparameters.pkl'
 RUNTIME_FILE = 'runtime.pkl'
@@ -120,11 +121,13 @@ class RRNNTrainer:
         batch_size = self.params['batch_size']
         loss_hist = np.zeros((batch_size, 4))
         loss_fn = 0
+        train_acc = 0
         for i in range(X_batch.size()[0]):
             x = X_batch[i]
             y = y_batch[i]
-            loss, _ = self.train_step(x, y)
+            loss, acc = self.train_step(x, y)
             loss_fn += sum(loss)
+            train_acc += acc
             # TODO: Clean this up
             for l in range(4):
                 try:
@@ -135,6 +138,7 @@ class RRNNTrainer:
         # Average out the loss
         loss_hist = np.mean(loss_hist, axis=0)
         loss_fn /= batch_size
+        train_acc /= batch_size  # Training accuracy is per batch -- very noisy
 
         loss_fn.backward()
         self.optimizer.step()
@@ -147,11 +151,16 @@ class RRNNTrainer:
             f.write('%f %f %f %f\n' % train_loss)
         f.close()
 
+        # Record the training accuracy. For a batch size of 1, this is either a
+        # 1 or a 0.
+        with open(TRAIN_ACC_FILE, 'a') as f:
+            f.write('%f\n' % train_acc)
+        f.close()
+
         # Record the validation loss
         if len(self.X_val) > 0 and self.iter_count % self.params['validate_every'] == 0:
             with open(VAL_LOSS_FILE, 'a') as f:
                 val_loss, val_acc = self.validate()
-                pdb.set_trace()
                 f.write('%d %f %f %f %f\n' % (self.iter_count, val_loss))
         f.close()
 
@@ -203,6 +212,7 @@ class RRNNTrainer:
         # forward pass and compute loss - out contains the logits for each possible char
         out, h_list, pred_tree_list, scores, second_scores, structure = self.model(X)
         y_pred = torch.argmax(out)
+        accuracy = (y_pred == torch.argmax(y))
 
         # forward pass of traditional GRU
         gru_h_list = self.gru_model(X)[0]
@@ -267,7 +277,7 @@ class RRNNTrainer:
         structure_file.write(str(structure) + '\n\n')
         structure_file.close()
 
-        return losses, y_pred
+        return losses, accuracy
 
 # Perform a training run using the given hyperparameters. Saves out data and model checkpoints
 # into the current directory.
