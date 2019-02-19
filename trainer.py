@@ -287,7 +287,7 @@ class RRNNTrainer:
         is_gru = structures_are_equal(structure, GRU_STRUCTURE)
         if is_gru:
             print('\nAcheived GRU structure!\n')
-        structure_file.write(str(structure) + '\n\n')
+        structure_file.write(str(structure) + '\n')
         structure_file.close()
 
         return losses, accuracy
