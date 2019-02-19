@@ -199,7 +199,7 @@ class RRNNTrainer:
         """
         # forward pass and compute loss
         out, h_list, pred_tree_list, scores, second_scores, structures = self.model(X)
-        structure = structures[-1]
+        structure = structures[0]
 
         # forward pass of traditional GRU
         gru_h_list = self.gru_model(X)[0]

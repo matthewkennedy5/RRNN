@@ -288,7 +288,7 @@ class RRNNforGRU(nn.Module):
         scores = []
         structures = []
 
-        for t in range(time_steps):
+        for t in range(1):
             x_t = inputs[:, t, :].reshape(1, -1)
             h_next, G_forward, G_structure, components_list_forward, G_node, scores_list, second_scores_list = self.cell(x_t, h_next)
             h_list.append(h_next)
