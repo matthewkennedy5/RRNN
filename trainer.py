@@ -125,7 +125,7 @@ class RRNNTrainer:
         self.model.eval()
 
     def train_batch(self, X_batch, y_batch):
-         # zero gradient
+         # zero gradients
         self.optimizer.zero_grad()
 
         batch_size = self.params['batch_size']
@@ -199,7 +199,7 @@ class RRNNTrainer:
             f.write('%d %f %f %f %f\n' % ((self.iter_count.item(),) + val_loss))
         f.close()
         with open(VAL_ACC_FILE, 'a') as f:
-            f.write('%d %f' % (self.iter_count.item(), val_acc))
+            f.write('%d %f\n' % (self.iter_count.item(), val_acc))
         f.close()
 
     def train_step(self, X, y):
@@ -338,9 +338,9 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
-        'nb_train': 4900,
-        'nb_val': 100,
-        'validate_every': 10,  # How often to evaluate the validation set (iterations)
+        'nb_train': 4500,
+        'nb_val': 500,
+        'validate_every': 500,  # How often to evaluate the validation set (iterations)
         'epochs': 1,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
