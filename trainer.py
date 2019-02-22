@@ -346,7 +346,7 @@ if __name__ == '__main__':
         'epochs': 1,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
-        'scoring_hidden_size': 128,     # Set to None for no hidden layer
+        'scoring_hidden_size': None,     # Set to None for no hidden layer
         'batch_size': 1,
         'verbose': True,
         'epochs_per_checkpoint': 1,
