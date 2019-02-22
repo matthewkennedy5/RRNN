@@ -169,18 +169,8 @@ def tree_distance_metric_list(pred_tree, target_tree, order=True, samples=10, de
     if order == True:
         # 随机选出 10 种构型
         res_list = []
-        indicator_string_list = ['0'*len(target_tree)] + random.sample(["".join(seq) for seq in itertools.product("01", repeat=len(target_tree))], samples-1)
-        # indicator_string_list = ['000000000',
-        #                          '110110111',
-        #                          '111000001',
-        #                          '111000101',
-        #                          '001011101',
-        #                          '011001100',
-        #                          '110010010',
-        #                          '110010011',
-        #                          '111100110',
-        #                          '100101101']
-        # indicator_string_list = ['010010000']
+        # indicator_string_list = ['0'*len(target_tree)] + random.sample(["".join(seq) for seq in itertools.product("01", repeat=len(target_tree))], samples-1)
+        indicator_string_list = ['000000000']
         for indicator_string in indicator_string_list:
             res = 0
             new_target_tree = target_tree.copy()
