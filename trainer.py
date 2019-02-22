@@ -185,11 +185,10 @@ class RRNNTrainer:
 
             for i in tqdm(range(n_val)):
                 x = self.X_val[i]
-                y = torch.argmax(self.y_val[i])  # Converting one-hot to index
-                loss, y_pred = self.train_step(x, y)
+                y = self.y_val[i]
+                loss, accuracy = self.train_step(x, y)
                 val_loss += loss
-                if y_pred.item() == y.item():
-                    val_acc += 1
+                val_acc += accuracy
 
             val_loss /= n_val
             val_acc /= n_val
@@ -211,7 +210,7 @@ class RRNNTrainer:
 
         Inputs:
             X - Embedded training sentence.
-            y - True value for the final character that we're trying to predict.
+            y - True values for the next characters after each character in the sentence.
 
         Returns:
             tuple of
@@ -222,9 +221,7 @@ class RRNNTrainer:
             y_pred - Predicted output character for this iteration
         """
         # forward pass and compute loss - out contains the logits for each possible char
-        out, h_list, pred_tree_list, scores, second_scores, structure = self.model(X)
-        y_pred = torch.argmax(out)
-        accuracy = (y_pred == torch.argmax(y))
+        y_pred, h_list, pred_tree_list, scores, second_scores, structure = self.model(X)
 
         # forward pass of traditional GRU
         gru_h_list = self.gru_model(X)[0]
@@ -243,7 +240,9 @@ class RRNNTrainer:
         # calculate loss function
         loss1 = 0
         if self.lamb1 != 0:
-            loss1 = self.loss(out, torch.argmax(y).unsqueeze(0))
+            for i, ch in enumerate(y):
+                y_index = torch.argmax(ch).unsqueeze(0)
+                loss1 += self.loss(y_pred[i], y_index)
             # loss1 = self.loss(out, y.reshape(1,27).float())
 
         # loss2 is the negative sum of the scores (alpha) of the vector
@@ -290,6 +289,12 @@ class RRNNTrainer:
         structure_file.write(str(structure) + '\n')
         structure_file.close()
 
+        accuracy = 0
+        for i in range(len(y)):
+            if torch.argmax(y_pred[i]).item() == torch.argmax(y[i]).item():
+                accuracy += 1
+        accuracy /= len(y)
+
         return losses, accuracy
 
 # Perform a training run using the given hyperparameters. Saves out data and model checkpoints
@@ -312,11 +317,14 @@ def run(params):
     elif params['optimizer'] == 'sgd':
         optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'])
 
-    X_train, y_train, X_val, y_val = dataloader.load_normalized_data('../train20.txt',
+    filename = os.path.join('..', params['data_file'])  # Since we're in the output dir
+    print('[INFO]: Loading training data into memory.')
+    X_train, y_train, X_val, y_val = dataloader.load_normalized_data(filename,
+                                                                     chunk_length=params['chunk_length'],
                                                                      n_train=params['nb_train'],
                                                                      n_val=params['nb_val'],
                                                                      device=device,
-                                                                     embeddings='gensim')
+                                                                     embeddings=params['embeddings'])
 
     trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, optimizer, params)
     trainer.train(params['epochs'], n_processes=params['n_processes'])
@@ -340,9 +348,9 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
-        'nb_train': 4500,
-        'nb_val': 0,
-        'validate_every': 500,  # How often to evaluate the validation set (iterations)
+        'nb_train': 10,
+        'nb_val': 2,
+        'validate_every': 5,  # How often to evaluate the validation set (iterations)
         'epochs': 1,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
@@ -352,7 +360,10 @@ if __name__ == '__main__':
         'epochs_per_checkpoint': 1,
         'optimizer': 'adam',
         'samples': 1,  # Number of target tree isomorphisms to sample in the TDM loss
-        'debug': True  # Turns multiprocessing off so pdb works
+        'debug': False,  # Turns multiprocessing off so pdb works
+        'chunk_length': 20,  # Number of time steps use per training example
+        'data_file': 'enwik8_clean.txt',
+        'embeddings': 'gensim'
     }
 
     run(params)
