@@ -330,6 +330,8 @@ def run(params):
 
 if __name__ == '__main__':
 
+    if len(sys.argv) != 2:
+        raise Exception('Usage: python trainer.py <output_dir>')
     dirname = sys.argv[1]
     os.mkdir(dirname)
     os.chdir(dirname)
@@ -339,7 +341,7 @@ if __name__ == '__main__':
         'multiplier': 1e-3,
         'lambdas': (20, 1, 0, 2),
         'nb_train': 4500,
-        'nb_val': 500,
+        'nb_val': 0,
         'validate_every': 500,  # How often to evaluate the validation set (iterations)
         'epochs': 1,
         'n_processes': mp.cpu_count(),
@@ -349,8 +351,8 @@ if __name__ == '__main__':
         'verbose': True,
         'epochs_per_checkpoint': 1,
         'optimizer': 'adam',
-        'samples': 10,  # Number of target tree isomorphisms to sample in the TDM loss
-        'debug': False  # Turns multiprocessing off so pdb works
+        'samples': 1,  # Number of target tree isomorphisms to sample in the TDM loss
+        'debug': True  # Turns multiprocessing off so pdb works
     }
 
     run(params)

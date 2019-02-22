@@ -208,7 +208,6 @@ class RRNNforGRUCell(nn.Module):
                 G.append(max_vector)
                 G_structure.append([left_node.name, right_node.name] + max_structure[2:] + ['G%d'%r])
 
-        scores_list = [self.scoring(g) for g in G]
         return G, G_structure, second_vectors, components_list
 
     def forward(self, x, h_prev):
