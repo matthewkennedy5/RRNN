@@ -166,8 +166,15 @@ class RRNNforGRUCell(nn.Module):
 
             scores_list = [self.scoring(v).item() for v in V_r] # calculate the scores for each vector
             max_index = np.argmax(scores_list)  # find the index of the vector with highest score
-            max_vector = V_r[max_index]
+            # max_vector = V_r[max_index]
             max_structure = V_structure[max_index]
+            probabilities = torch.nn.Softmax(dim=0)(torch.tensor(scores_list))
+            # if np.random.random() < 0.01:
+            #     print(torch.max(probabilities).item())
+            max_vector = torch.zeros(V_r[0].size())
+            # START HERE: combine this code with the real forward pass.
+            for index, v in enumerate(V_r):
+                max_vector += v * probabilities[i]
 
             # Also grab the 2nd highest scoring vector and structure to be used
             # in the calculation of loss2
