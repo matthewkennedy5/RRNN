@@ -45,26 +45,26 @@ def GRUtree_pytorch(x, h, weight_ih_l0, weight_hh_l0, bias_ih_l0, bias_hh_l0):
     z = torch.sigmoid(torch.mm(x, W_iz) + b_iz + torch.mm(h, W_hz) + b_hz)
     rh = r*h
     h_tilde = torch.tanh(torch.mm(x, W_in) + b_in + torch.mm(rh, W_hn) + r*b_hn)
-    z1 = 1-z
+    oneMinusz = 1-z
     zh = z*h
-    zh_tilde = z1*h_tilde
+    zh_tilde = oneMinusz*h_tilde
     h_next = zh + zh_tilde
 
+    z_1Node = Node(z,  name='z1', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
     rNode = Node(r, name='r', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
+    z_2Node = Node(z,  name='z2', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
     rhNode = Node(rh, name='r*h', left_child=rNode, right_child=Node(h, 'h'))
     h_tildeNode = Node(h_tilde, name='h_tilde', left_child=rhNode, right_child=Node(x, 'x'))
-    z1Node = Node(z,  name='z1', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
-    z2Node = Node(z,  name='z2', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
-    zhNode = Node(zh, name='z*h', left_child=z1Node, right_child=Node(h, 'h'))
-    oneMinuszNode = Node(z1, name='1-z', left_child=z2Node, right_child=Node(o, '0'))
-    zh_tildeNode = Node(z1*h_tilde, name='(1-z)*h_tilde', left_child=h_tildeNode, right_child=oneMinuszNode)
+    oneMinuszNode = Node(oneMinusz, name='1-z', left_child=z_1Node, right_child=Node(o, '0'))
+    zh_tildeNode = Node(zh_tilde, name='(1-z)*h_tilde', left_child=h_tildeNode, right_child=oneMinuszNode)
+    zhNode = Node(zh, name='z*h', left_child=z_2Node, right_child=Node(h, 'h'))
     h_nextNode = Node(h_next, name='h_next', left_child=zh_tildeNode, right_child=zhNode)
 
     rNode.parent = rhNode
     rhNode.parent = h_tildeNode
     h_tildeNode.parent = zh_tildeNode
-    z1Node.parent = zhNode
-    z2Node.parent = oneMinuszNode
+    z_1Node.parent = oneMinuszNode
+    z_2Node.parent = zhNode
     zhNode.parent = h_nextNode
     oneMinuszNode.parent = zh_tildeNode
     zh_tildeNode.parent = h_nextNode
@@ -72,14 +72,17 @@ def GRUtree_pytorch(x, h, weight_ih_l0, weight_hh_l0, bias_ih_l0, bias_hh_l0):
     rNode.rightchild.parent = rNode
     rhNode.rightchild.parent = rhNode
     h_tildeNode.rightchild.parent = h_tildeNode
-    z1Node.leftchild.parent = z1Node
-    z1Node.rightchild.parent = z1Node
-    z2Node.leftchild.parent = z2Node
-    z2Node.rightchild.parent = z2Node
+    z_1Node.leftchild.parent = z_1Node
+    z_1Node.rightchild.parent = z_1Node
+    z_2Node.leftchild.parent = z_2Node
+    z_2Node.rightchild.parent = z_2Node
     zhNode.rightchild.parent = zhNode
     oneMinuszNode.rightchild.parent = oneMinuszNode
 
-    node_list = [rNode, z1Node, z2Node, rhNode, h_tildeNode, zhNode, oneMinuszNode, zh_tildeNode, h_nextNode]
+    
+#    node_list = [rNode, z_1Node, z_2Node, rhNode, h_tildeNode, zhNode, oneMinuszNode, zh_tildeNode, h_nextNode]
+    node_list = [z_1Node, rNode, z_2Node, rhNode, h_tildeNode, oneMinuszNode, zh_tildeNode, zhNode, h_nextNode]
+
     return h_nextNode, node_list
 
 
