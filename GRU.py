@@ -218,6 +218,7 @@ class RRNNforGRUCell(nn.Module):
         return G, G_structure, second_vectors, components_list
 
     def forward(self, x, h_prev):
+        # G contains the vector values for each node
         G, G_structure, second_vectors, components_list = self.tree_structure_search(x, h_prev)
         G_node = [] # containing the Node class instance
         Gprime_node = []
@@ -238,14 +239,16 @@ class RRNNforGRUCell(nn.Module):
 
             res = retrieve_activation_func(activation_func, res, self.multiplier)
 
-            node = Node(res, name, structure=G_structure[idx], left_child=left_node, right_child=right_node)
+            node = Node(G[idx], name, structure=G_structure[idx], left_child=left_node, right_child=right_node)
             left_node.parent = node
             right_node.parent = node
 
             G_node.append(node)
             components_list_forward = [G_node[i] for i in range(len(G_node)) if G_node[i].parent is None]
 
-        G_forward = [node.vector for node in G_node]
+        # G_forward = [node.vector for node in G_node]
+        G_forward = [vector for vector in G]
+        components_list_forward = None
         scores_list = [self.scoring(g) for g in G_forward]
         h_next = G_forward[-1]
 

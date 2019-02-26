@@ -170,7 +170,7 @@ def tree_distance_metric_list(pred_tree, target_tree, order=True, samples=10, de
         # 随机选出 10 种构型
         res_list = []
         # indicator_string_list = ['0'*len(target_tree)] + random.sample(["".join(seq) for seq in itertools.product("01", repeat=len(target_tree))], samples-1)
-        indicator_string_list = ['000000000']
+        indicator_string_list = ['000000000']   # Fixed target tree
         for indicator_string in indicator_string_list:
             res = 0
             new_target_tree = target_tree.copy()
