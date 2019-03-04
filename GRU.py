@@ -166,8 +166,24 @@ class RRNNforGRUCell(nn.Module):
 
             scores_list = [self.scoring(v).item() for v in V_r] # calculate the scores for each vector
             max_index = np.argmax(scores_list)  # find the index of the vector with highest score
-            max_vector = V_r[max_index]
+            # max_vector = V_r[max_index]
             max_structure = V_structure[max_index]
+
+            TEMPERATURE = 1
+            GUMBEL = True
+            scores = np.array(scores_list)
+            if GUMBEL:
+                scores += -np.log(-np.log(np.random.uniform(0, 1, size=scores.shape)))
+            scores = torch.tensor(scores)
+            probabilities = torch.nn.Softmax(dim=0)(scores / TEMPERATURE)
+            if np.random.random() < 0.05:
+                print('Max probability from softmax: ', end='')
+                print(torch.max(probabilities).item())
+
+            max_vector = torch.zeros(V_r[0].size())
+            # START HERE: combine this code with the real forward pass.
+            for index, v in enumerate(V_r):
+                max_vector += v * probabilities[i]
 
             # Also grab the 2nd highest scoring vector and structure to be used
             # in the calculation of loss2
@@ -211,6 +227,7 @@ class RRNNforGRUCell(nn.Module):
         return G, G_structure, second_vectors, components_list
 
     def forward(self, x, h_prev):
+        # G contains the vector values for each node
         G, G_structure, second_vectors, components_list = self.tree_structure_search(x, h_prev)
         G_node = [] # containing the Node class instance
         Gprime_node = []
@@ -231,14 +248,16 @@ class RRNNforGRUCell(nn.Module):
 
             res = retrieve_activation_func(activation_func, res, self.multiplier)
 
-            node = Node(res, name, structure=G_structure[idx], left_child=left_node, right_child=right_node)
+            node = Node(G[idx], name, structure=G_structure[idx], left_child=left_node, right_child=right_node)
             left_node.parent = node
             right_node.parent = node
 
             G_node.append(node)
             components_list_forward = [G_node[i] for i in range(len(G_node)) if G_node[i].parent is None]
 
-        G_forward = [node.vector for node in G_node]
+        # G_forward = [node.vector for node in G_node]
+        G_forward = [vector for vector in G]
+        components_list_forward = None
         scores_list = [self.scoring(g) for g in G_forward]
         h_next = G_forward[-1]
 

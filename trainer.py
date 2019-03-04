@@ -151,6 +151,8 @@ class RRNNTrainer:
         train_acc /= batch_size  # Training accuracy is per batch -- very noisy
 
         loss_fn.backward()
+        if self.params['max_grad_norm'] is not None:
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.params['max_grad_norm'])
         self.optimizer.step()
         self.iter_count += 1
 
@@ -160,6 +162,7 @@ class RRNNTrainer:
         with open(TRAIN_LOSS_FILE, 'a') as f:
             f.write('%f %f %f %f\n' % train_loss)
         f.close()
+        print(loss_fn.item())
 
         # Record the training accuracy. For a batch size of 1, this is either a
         # 1 or a 0.
@@ -318,7 +321,7 @@ def run(params):
         optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'])
 
     filename = os.path.join('..', params['data_file'])  # Since we're in the output dir
-    print('[INFO]: Loading training data into memory.')
+    print('[INFO] Loading training data into memory.')
     X_train, y_train, X_val, y_val = dataloader.load_normalized_data(filename,
                                                                      chunk_length=params['chunk_length'],
                                                                      n_train=params['nb_train'],
@@ -345,25 +348,26 @@ if __name__ == '__main__':
     os.chdir(dirname)
 
     params = {
-        'learning_rate': 1e-5,
-        'multiplier': 1e-3,
-        'lambdas': (20, 1, 0, 2),
-        'nb_train': 10,
-        'nb_val': 2,
-        'validate_every': 5,  # How often to evaluate the validation set (iterations)
-        'epochs': 1,
+        'learning_rate': 1e-1,
+        'multiplier': 1,
+        'lambdas': (0, 0, 0, 0.1),
+        'nb_train': 1,
+        'nb_val': 0,
+        'validate_every': np.Inf,  # How often to evaluate the validation set (iterations)
+        'epochs': 100000,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
-        'scoring_hidden_size': None,     # Set to None for no hidden layer
+        'scoring_hidden_size': 32,     # Set to None for no hidden layer
         'batch_size': 1,
         'verbose': True,
-        'epochs_per_checkpoint': 1,
-        'optimizer': 'adam',
+        'epochs_per_checkpoint': 1000,
+        'optimizer': 'sgd',
         'samples': 1,  # Number of target tree isomorphisms to sample in the TDM loss
         'debug': False,  # Turns multiprocessing off so pdb works
-        'chunk_length': 20,  # Number of time steps use per training example
+        'chunk_length': 2,  # Number of time steps use per training example
         'data_file': 'enwik8_clean.txt',
-        'embeddings': 'gensim'
+        'embeddings': 'gensim',
+        'max_grad_norm': 1  # Max norm of gradient. Set to None for no clipping
     }
 
     run(params)
