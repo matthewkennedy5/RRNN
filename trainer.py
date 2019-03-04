@@ -151,6 +151,8 @@ class RRNNTrainer:
         train_acc /= batch_size  # Training accuracy is per batch -- very noisy
 
         loss_fn.backward()
+        if self.params['max_grad_norm'] is not None:
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.params['max_grad_norm'])
         self.optimizer.step()
         self.iter_count += 1
 
@@ -364,7 +366,8 @@ if __name__ == '__main__':
         'debug': False,  # Turns multiprocessing off so pdb works
         'chunk_length': 2,  # Number of time steps use per training example
         'data_file': 'enwik8_clean.txt',
-        'embeddings': 'gensim'
+        'embeddings': 'gensim',
+        'max_grad_norm': 1  # Max norm of gradient. Set to None for no clipping
     }
 
     run(params)
