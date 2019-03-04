@@ -74,7 +74,7 @@ def load_data(filename, n_data, chunk_length, embeddings='gensim'):
     return X_train, y_train
 
 
-def load_normalized_data(filename, chunk_length, n_train, n_val, device, embeddings='gensim', shuffle=True):
+def load_normalized_data(filename, chunk_length, n_train, n_val=0, device=torch.device('cpu'), embeddings='gensim', shuffle=True):
     """Loads a version of the dataset that has been normalized.
 
     Inputs:
