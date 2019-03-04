@@ -168,9 +168,17 @@ class RRNNforGRUCell(nn.Module):
             max_index = np.argmax(scores_list)  # find the index of the vector with highest score
             # max_vector = V_r[max_index]
             max_structure = V_structure[max_index]
-            probabilities = torch.nn.Softmax(dim=0)(torch.tensor(scores_list))
-            # if np.random.random() < 0.01:
-            #     print(torch.max(probabilities).item())
+
+            TEMPERATURE = 1
+            GUMBEL = True
+            scores = np.array(scores_list)
+            if GUMBEL:
+                scores += -np.log(-np.log(np.random.uniform(0, 1, size=scores.shape)))
+            scores = torch.tensor(scores)
+            probabilities = torch.nn.Softmax(dim=0)(scores / TEMPERATURE)
+            if np.random.random() < 0.01:
+                print(torch.max(probabilities).item())
+
             max_vector = torch.zeros(V_r[0].size())
             # START HERE: combine this code with the real forward pass.
             for index, v in enumerate(V_r):
