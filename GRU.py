@@ -176,7 +176,8 @@ class RRNNforGRUCell(nn.Module):
                 scores += -np.log(-np.log(np.random.uniform(0, 1, size=scores.shape)))
             scores = torch.tensor(scores)
             probabilities = torch.nn.Softmax(dim=0)(scores / TEMPERATURE)
-            if np.random.random() < 0.01:
+            if np.random.random() < 0.05:
+                print('Max probability from softmax: ', end='')
                 print(torch.max(probabilities).item())
 
             max_vector = torch.zeros(V_r[0].size())
