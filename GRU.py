@@ -93,6 +93,23 @@ class RRNNforGRUCell(nn.Module):
         else:
             self.scoring = nn.Linear(hidden_size, 1, bias=False)
 
+    def is_gru_pairing(self, r, left, right, l, binary_func, activation_func):
+        """Returns True if the candidate vector is from the GRU truth tree.
+
+        In the set of candidate vectors V_r, there exists one vector which
+        corresponds to the GRU tree. This method returns true if the candidate
+        vector defined by the inputs to this method is the GRU vector.
+
+        Inputs:
+            r - Which iteration of pairing we're on (0-8 for GRU)
+            left - Left child node
+            right - Right child node
+            l - Choice of L, R, b weights (0-3 for GRU)
+            binary_func - Binary function used ("add" or "mul")
+            activation_func - Activation function used by the candidate vector
+        """
+        return False    # TODO: Implement
+
     def tree_structure_search(self, x, h_prev):
         """
         This is the "fake" forward process.
