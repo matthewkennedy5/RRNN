@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Oct 25 02:16:41 2018
-
 @author: Bruce
 """
 
@@ -21,14 +20,12 @@ MAGIC_EMBEDDINGS_FILE = 'char-embeddings.txt'
 
 def load_data(filename, n_data, chunk_length, embeddings='gensim'):
     """Loads the text data from the given file.
-
     Inputs:
         filename - Path to the text file containing the text corpus.
         n_data - Number of chunks to load
         chunk_length - Time steps per data point
         embeddings - 'magic' or 'gensim' - the choice of character embeddings.
             magic is 300D and gensim is 100D.
-
     Returns:
         X_train - List of tensors containing the training setences in embedded space.
         y_train - List of tensors containing one-hot labels for each sentence, shifted by
@@ -76,7 +73,6 @@ def load_data(filename, n_data, chunk_length, embeddings='gensim'):
 
 def load_normalized_data(filename, chunk_length, n_train, n_val=0, device=torch.device('cpu'), embeddings='gensim', shuffle=True):
     """Loads a version of the dataset that has been normalized.
-
     Inputs:
         filename - Name of a file containing rows of text, the last character of
             which will be used as the truth.
@@ -86,7 +82,6 @@ def load_normalized_data(filename, chunk_length, n_train, n_val=0, device=torch.
         device - torch.device to put the tensors on
         embeddings - 'gensim' for 100-dimensional or 'magic' for 300-dimensional
         shuffle - Whether to shuffle the training data
-
     Returns:
         X_train - Training x tensor
         y_train - Training y tensor (one-hot)
@@ -134,4 +129,3 @@ def load_normalized_data(filename, chunk_length, n_train, n_val=0, device=torch.
 
 if __name__ == '__main__':
     X_train, y_train = load_data('train20.txt')
-
