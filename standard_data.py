@@ -7,10 +7,11 @@ from tqdm import tqdm
 from gensim.models import Word2Vec
 from dataloader import element_dict
 
+dirname = os.path.dirname(os.path.realpath(__file__))
+CORPUS_FILENAME = os.path.join(dirname, 'enwik8_clean.txt')
+SAVE_FILE = os.path.join(dirname, 'data.pkl')
 CHUNK_LENGTH = 20
 EMBEDDINGS = 'gensim'
-CORPUS_FILENAME = 'enwik8_clean.txt'
-SAVE_FILE = 'data.pkl'
 N_TRAIN = 5000
 N_VAL = 1000
 N_TEST = 2000
