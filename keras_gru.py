@@ -1,56 +1,136 @@
+from pprint import pprint
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import GRU, Dense, TimeDistributed, Softmax
+from tensorflow.keras.regularizers import l2
 import torch
 import pdb
 from matplotlib import pyplot as plt
 import numpy as np
 import standard_data
+from tqdm import trange
 
 FILENAME = 'enwik8_clean.txt'
 CHUNK_LENGTH = 20
-EPOCHS = 100
+# EPOCHS = 10
 HIDDEN_SIZE = 100
 N_CHARS = 27
-BATCH_SIZE = 64
-LEARNING_RATE = 1e-2
+# BATCH_SIZE = 16
+# LEARNING_RATE = 1e-2
+# L2_WEIGHT_DECAY = 0
+DTYPE = np.float32
+N_RANDOM_SEARCH = 100
+
 
 print('[INFO] Loading data.')
 data = standard_data.load_standard_data()
 (X_train, y_train), (X_val, y_val), (X_test, y_test) = data
 
-X_train = X_train.numpy()
+X_train = X_train.numpy().astype(DTYPE)
 y_train = y_train.numpy()
-X_val = X_val.numpy()
+X_val = X_val.numpy().astype(DTYPE)
 y_val = y_val.numpy()
-X_test = X_test.numpy()
+X_test = X_test.numpy().astype(DTYPE)
 y_test = y_test.numpy()
 
-model = Sequential([
-            GRU(HIDDEN_SIZE, return_sequences=True, input_shape=(CHUNK_LENGTH, X_train.shape[2])),
-            TimeDistributed(Dense(N_CHARS)),
-            Softmax()
-        ])
 
-adam = tf.keras.optimizers.Adam(lr=LEARNING_RATE)
-model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
-history = model.fit(X_train, y_train, batch_size=BATCH_SIZE, epochs=EPOCHS,
-                    validation_data=(X_val, y_val))
+def random_params():
+    reg = 10 ** np.random.uniform(-8, 0)
+    learning_rate = 10 ** np.random.uniform(-5, -1)
+    epochs = 10
+    batch_size = int(2 ** np.random.uniform(3, 8))
+    params = {'reg': reg, 'learning rate': learning_rate, 'epochs': epochs,
+              'batch size': batch_size}
+    return params
 
-# Calculate and plot BPC
-train_acc = history.history['acc']
-val_acc = history.history['val_acc']
-train_bpc = -np.log2(train_acc)
-val_bpc = -np.log2(val_acc)
 
-plt.figure()
-plt.plot(range(train_bpc.shape[0]), train_bpc, label='Training BPC')
-plt.plot(range(val_bpc.shape[0]), val_bpc, label='Validation BPC')
-plt.ylabel('Bits per character')
-plt.xlabel('Epoch')
-plt.title('BPC vs Epochs')
-plt.legend()
-plt.show()
+def run(params):
+    model = Sequential([
+                GRU(HIDDEN_SIZE, return_sequences=True,
+                    input_shape=(CHUNK_LENGTH, X_train.shape[2]),
+                    kernel_regularizer=l2(params['reg']),
+                    recurrent_regularizer=l2(params['reg'])),
+                TimeDistributed(Dense(N_CHARS, kernel_regularizer=l2(params['reg']))),
+                Softmax()
+            ])
+
+    adam = tf.keras.optimizers.Adam(lr=params['learning rate'])
+    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
+    history = model.fit(X_train, y_train, batch_size=params['batch size'], epochs=params['epochs'],
+                        validation_data=(X_val, y_val))
+    return history
+
+
+def random_hyperparam_search(n_runs):
+    best_params = None
+    lowest_val_loss = np.Inf
+    for i in trange(N_RANDOM_SEARCH):
+        params = random_params()
+        print('-'*70)
+        print('[INFO] Trying the following hyperparameters:')
+        pprint(params)
+        history = run(params)
+        print('[INFO] Run complete.')
+        val_loss = np.min(history.history['val_loss'])
+        if val_loss < lowest_val_loss:
+            lowest_val_loss = val_loss
+            best_params = params
+        print('[INFO] Best validation loss achieved for this run: %f' % (val_loss,))
+
+    print('[INFO] Random search complete.')
+    print('[INFO] Best hyperparameters found: ')
+    pprint(best_params)
+
+
+def plot_results(history):
+    train_loss = history.history['loss']
+    val_loss = history.history['val_loss']
+    train_acc = history.history['acc']
+    val_acc = history.history['val_acc']
+    plt.figure(figsize=(20, 15))
+    plt.subplot(1, 2, 1)
+    plt.plot(range(len(train_loss)), train_loss, label='Train loss')
+    plt.plot(range(len(val_loss)), val_loss, label='Validation loss')
+    plt.title('Loss')
+    plt.xlabel('Epoch')
+    plt.legend()
+    plt.subplot(1, 2, 2)
+    plt.plot(range(len(train_acc)), train_acc, label='Train accuracy')
+    plt.plot(range(len(val_acc)), val_acc, label='Validation accuracy')
+    plt.title('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend()
+    plt.savefig('loss.png')
+    plt.show()
+
+
+def plot_bpc(history):
+    # Calculate and plot "BPC"
+    train_acc = history.history['acc']
+    val_acc = history.history['val_acc']
+    train_bpc = -np.log2(train_acc)
+    val_bpc = -np.log2(val_acc)
+
+    plt.figure()
+    plt.plot(range(train_bpc.shape[0]), train_bpc, label='Training BPC')
+    plt.plot(range(val_bpc.shape[0]), val_bpc, label='Validation BPC')
+    plt.ylabel('Bits per character')
+    plt.xlabel('Epoch')
+    plt.title('BPC vs Epochs')
+    plt.legend()
+    plt.savefig('bpc.png')
+    plt.show()
+
+
+if __name__=='__main__':
+
+    params = {'learning rate': 1e-4,
+              'batch size': 64,
+              'reg': 0,
+              'epochs': 200}
+    plot_bpc(run(params))
+
+
 
 # Plot loss
 # loss = history.history['loss']
