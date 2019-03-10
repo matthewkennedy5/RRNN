@@ -322,6 +322,16 @@ def run(params):
     print('[INFO] Loading training data into memory.')
     data = standard_data.load_standard_data()
     (X_train, y_train), (X_val, y_val), (X_test, y_test) = data
+    nb_train = params['nb_train']
+    nb_val = params['nb_val']
+    if X_train.size()[0] > nb_train:
+        X_train = X_train[:nb_train]
+        y_train = y_train[:nb_train]
+    if X_val.size()[0] > nb_val:
+        X_val = X_val[:nb_val]
+        y_val = y_val[:nb_val]
+    print('[INFO] Beginning training with %d training samples and %d '
+          'validation samples.' % (X_train.size()[0], X_val.size()[0]))
 
     trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, optimizer, params)
     trainer.train(params['epochs'], n_processes=params['n_processes'])
@@ -342,22 +352,21 @@ if __name__ == '__main__':
     os.chdir(dirname)
 
     params = {
-        'learning_rate': 1e-1,
+        'learning_rate': 1e-3,
         'multiplier': 1,
         'lambdas': (1, 0, 0, 0),
         'nb_train': 5000,    # Only meaningful if it's less than the training set size
-        'nb_val': 0,
-        'validate_every': np.Inf,  # How often to evaluate the validation set (iterations)
-        'epochs': 1,
+        'nb_val': 1000,
+        'validate_every': 1000,  # How often to evaluate the validation set (iterations)
+        'epochs': 10,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
         'batch_size': 1,
         'verbose': True,
         'epochs_per_checkpoint': 1000,
-        'optimizer': 'sgd',
-        'debug': True,  # Turns multiprocessing off so pdb works
-        'chunk_length': 20,  # Number of time steps use per training example
+        'optimizer': 'adam',
+        'debug': False,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
         'max_grad_norm': 0.25  # Max norm of gradients. Set to None for no clipping
