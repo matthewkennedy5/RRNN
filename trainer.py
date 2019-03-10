@@ -10,12 +10,12 @@ from torch.utils.data import TensorDataset, DataLoader
 
 # import tree_methods_parallel as tree_methods
 import tree_methods
-import dataloader
 from GRU import RRNNforGRU
 from structure_utils import structures_are_equal, GRU_STRUCTURE
 import pickle
 import pdb
 from tqdm import tqdm
+import standard_data
 
 VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
@@ -133,8 +133,8 @@ class RRNNTrainer:
         loss_fn = 0
         train_acc = 0
         for i in range(X_batch.size()[0]):
-            x = X_batch[i]
-            y = y_batch[i]
+            x = X_batch[i, :, :].unsqueeze(0)
+            y = y_batch[i, :, :].unsqueeze(0)
             loss, acc = self.train_step(x, y)
             loss_fn += sum(loss)
             train_acc += acc
@@ -164,8 +164,6 @@ class RRNNTrainer:
         f.close()
         print(loss_fn.item())
 
-        # Record the training accuracy. For a batch size of 1, this is either a
-        # 1 or a 0.
         with open(TRAIN_ACC_FILE, 'a') as f:
             f.write('%f\n' % train_acc)
         f.close()
@@ -187,8 +185,8 @@ class RRNNTrainer:
             val_acc = 0
 
             for i in tqdm(range(n_val)):
-                x = self.X_val[i]
-                y = self.y_val[i]
+                x = self.X_val[i, :, :].unsqueeze(0)
+                y = self.y_val[i, :, :].unsqueeze(0)
                 loss, accuracy = self.train_step(x, y)
                 val_loss += loss
                 val_acc += accuracy
@@ -243,7 +241,7 @@ class RRNNTrainer:
         # calculate loss function
         loss1 = 0
         if self.lamb1 != 0:
-            for i, ch in enumerate(y):
+            for i, ch in enumerate(y.squeeze()):
                 y_index = torch.argmax(ch).unsqueeze(0)
                 loss1 += self.loss(y_pred[i], y_index)
             # loss1 = self.loss(out, y.reshape(1,27).float())
@@ -322,12 +320,8 @@ def run(params):
 
     filename = os.path.join('..', params['data_file'])  # Since we're in the output dir
     print('[INFO] Loading training data into memory.')
-    X_train, y_train, X_val, y_val = dataloader.load_normalized_data(filename,
-                                                                     chunk_length=params['chunk_length'],
-                                                                     n_train=params['nb_train'],
-                                                                     n_val=params['nb_val'],
-                                                                     device=device,
-                                                                     embeddings=params['embeddings'])
+    data = standard_data.load_standard_data()
+    (X_train, y_train), (X_val, y_val), (X_test, y_test) = data
 
     trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, optimizer, params)
     trainer.train(params['epochs'], n_processes=params['n_processes'])
@@ -350,11 +344,11 @@ if __name__ == '__main__':
     params = {
         'learning_rate': 1e-1,
         'multiplier': 1,
-        'lambdas': (0, 0, 0, 0.1),
-        'nb_train': 1,
+        'lambdas': (1, 0, 0, 0),
+        'nb_train': 5000,    # Only meaningful if it's less than the training set size
         'nb_val': 0,
         'validate_every': np.Inf,  # How often to evaluate the validation set (iterations)
-        'epochs': 100000,
+        'epochs': 1,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
@@ -362,12 +356,11 @@ if __name__ == '__main__':
         'verbose': True,
         'epochs_per_checkpoint': 1000,
         'optimizer': 'sgd',
-        'samples': 1,  # Number of target tree isomorphisms to sample in the TDM loss
-        'debug': False,  # Turns multiprocessing off so pdb works
-        'chunk_length': 2,  # Number of time steps use per training example
+        'debug': True,  # Turns multiprocessing off so pdb works
+        'chunk_length': 20,  # Number of time steps use per training example
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
-        'max_grad_norm': 1  # Max norm of gradient. Set to None for no clipping
+        'max_grad_norm': 0.25  # Max norm of gradients. Set to None for no clipping
     }
 
     run(params)
