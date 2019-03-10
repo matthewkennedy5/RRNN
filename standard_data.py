@@ -140,6 +140,10 @@ def partition_data():
         X_val = (X_val - mean) / std
         X_test = (X_test - mean) / std
 
+        y_train = y_train.long()
+        y_val = y_val.long()
+        y_test = y_test.long()
+
         data = ((X_train, y_train),
                (X_val, y_val),
                (X_test, y_test))
@@ -156,7 +160,8 @@ def load_standard_data():
     use it to train and evaluate both models instead of randomly selecting samples.
     """
     if not os.path.isfile(SAVE_FILE):
-        print('[INFO] Data partition file not found. Creating new ones.')
+        print('[INFO] Partitioning fresh training, validation, and test data '
+              'from the corpus.')
         partition_data()
 
     data = pickle.load(open(SAVE_FILE, 'rb'))
