@@ -151,8 +151,13 @@ class RRNNTrainer:
         train_acc /= batch_size  # Training accuracy is per batch -- very noisy
 
         loss_fn.backward()
-        if self.params['max_grad_norm'] is not None:
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.params['max_grad_norm'])
+
+        # Clip gradients elementwise.
+        max_grad = self.params['max_grad']
+        if max_grad is not None:
+            for p in self.model.parameters():
+                p.grad.data.clamp_(-max_grad, max_grad)
+
         self.optimizer.step()
         self.iter_count += 1
 
@@ -305,6 +310,9 @@ def run(params):
     pickle.dump(params, open(HYPERPARAM_FILE, 'wb'))
     print('[INFO] Saved hyperparameters.')
 
+    if params['debug']:
+        print('[INFO] Running in debug mode. Multiprocessing is deactivated.')
+
     start = time.time()
     gru_model = torch.load('../gru_parameters.pkl')
     model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['multiplier'],
@@ -352,24 +360,24 @@ if __name__ == '__main__':
     os.chdir(dirname)
 
     params = {
-        'learning_rate': 1e-3,
+        'learning_rate': 1e-4,
         'multiplier': 1,
         'lambdas': (1, 0, 0, 0),
         'nb_train': 5000,    # Only meaningful if it's less than the training set size
-        'nb_val': 1000,
+        'nb_val': 0,
         'validate_every': 1000,  # How often to evaluate the validation set (iterations)
-        'epochs': 10,
+        'epochs': 40,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
-        'batch_size': 1,
+        'batch_size': 2,
         'verbose': True,
         'epochs_per_checkpoint': 1000,
         'optimizer': 'adam',
-        'debug': False,  # Turns multiprocessing off so pdb works
+        'debug': True,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
-        'max_grad_norm': 0.25  # Max norm of gradients. Set to None for no clipping
+        'max_grad': 0.05  # Max value of gradients. Set to None for no clipping
     }
 
     run(params)
