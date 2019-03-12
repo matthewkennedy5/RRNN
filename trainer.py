@@ -298,7 +298,7 @@ class RRNNTrainer:
 
         accuracy = 0
         for i in range(len(y)):
-            if torch.argmax(y_pred[i]).item() == torch.argmax(y[i]).item():
+            if torch.argmax(y_pred[i]).item() == torch.argmax(y[0, i, :]).item():
                 accuracy += 1
         accuracy /= len(y)
 
@@ -361,21 +361,21 @@ if __name__ == '__main__':
     os.chdir(dirname)
 
     params = {
-        'learning_rate': 1e-4,
+        'learning_rate': 1e-5,
         'multiplier': 1,
-        'lambdas': (1, 1, 0, 1),
+        'lambdas': (1, 8, 0, 0.005),
         'nb_train': 5000,    # Only meaningful if it's less than the training set size
         'nb_val': 0,
         'validate_every': 1000,  # How often to evaluate the validation set (iterations)
-        'epochs': 40,
+        'epochs': 10,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
-        'batch_size': 1,
+        'batch_size': 2,
         'verbose': True,
         'epochs_per_checkpoint': 1,
-        'optimizer': 'adam',
-        'debug': True,  # Turns multiprocessing off so pdb works
+        'optimizer': 'sgd',
+        'debug': False,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
         'max_grad': 1  # Max value of gradients. Set to None for no clipping
