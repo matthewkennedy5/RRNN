@@ -153,10 +153,11 @@ class RRNNTrainer:
         loss_fn.backward()
 
         # Clip gradients elementwise.
-        max_grad = self.params['max_grad']
-        if max_grad is not None:
-            for p in self.model.parameters():
-                p.grad.data.clamp_(-max_grad, max_grad)
+        # max_grad = self.params['max_grad']
+        # if max_grad is not None:
+        #     for p in self.model.parameters():
+        #         p.grad.data.clamp_(-max_grad, max_grad)
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.params['max_grad'])
 
         self.optimizer.step()
         self.iter_count += 1
