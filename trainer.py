@@ -282,7 +282,7 @@ class RRNNTrainer:
             for l in range(len(pred_tree_list)):
                 loss4 += tree_methods.tree_distance_metric_list(pred_tree_list[l],
                                                                 target_tree_list[l],
-                                                                samples=self.params['samples'],
+                                                                samples=1,
                                                                 device=device)
 
         losses = (self.lamb1*loss1, self.lamb2*loss2, self.lamb3*loss3, self.lamb4*loss4)
@@ -363,7 +363,7 @@ if __name__ == '__main__':
     params = {
         'learning_rate': 1e-4,
         'multiplier': 1,
-        'lambdas': (1, 0, 0, 0),
+        'lambdas': (1, 1, 0, 1),
         'nb_train': 5000,    # Only meaningful if it's less than the training set size
         'nb_val': 0,
         'validate_every': 1000,  # How often to evaluate the validation set (iterations)
@@ -371,14 +371,14 @@ if __name__ == '__main__':
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
-        'batch_size': 2,
+        'batch_size': 1,
         'verbose': True,
-        'epochs_per_checkpoint': 1000,
+        'epochs_per_checkpoint': 1,
         'optimizer': 'adam',
         'debug': True,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
-        'max_grad': 0.05  # Max value of gradients. Set to None for no clipping
+        'max_grad': 1  # Max value of gradients. Set to None for no clipping
     }
 
     run(params)
