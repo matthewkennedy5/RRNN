@@ -188,17 +188,18 @@ class RRNNforGRUCell(nn.Module):
 
             TEMPERATURE = 1
             GUMBEL = True
-            scores = np.array(scores_list)
+            candidate_vectors = torch.stack(V_r)
+            scores = self.scoring(candidate_vectors).squeeze()
             if GUMBEL:
-                scores += -np.log(-np.log(np.random.uniform(0, 1, size=scores.shape)))
-            scores = torch.tensor(scores)
+                gumbel = -np.log(-np.log(np.random.uniform(0, 1, size=scores.shape)))
+                gumbel = torch.tensor(gumbel).to(torch.float32)
+                scores += gumbel
             probabilities = torch.nn.Softmax(dim=0)(scores / TEMPERATURE)
             # if np.random.random() < 0.05:
             #     print('Max probability from softmax: ', end='')
             #     print(torch.max(probabilities).item())
 
             max_vector = torch.zeros(V_r[0].size())
-            # START HERE: combine this code with the real forward pass.
             for index, v in enumerate(V_r):
                 max_vector += v * probabilities[i]
 
