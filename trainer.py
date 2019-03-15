@@ -364,6 +364,10 @@ def run(params):
     gru_model = torch.load('../gru_parameters.pkl')
     model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['multiplier'],
                        params['scoring_hidden_size'])
+    if params['warm_start']:
+        weights = params['weights_file']
+        print('[INFO] Warm starting from ' + weights + '.')
+        model.load_state_dict(torch.load(weights))
 
     model.share_memory()
     gru_model.share_memory()
@@ -396,33 +400,35 @@ def run(params):
 
 if __name__ == '__main__':
 
-    if len(sys.argv) != 2:
-        raise Exception('Usage: python trainer.py <output_dir>')
-    dirname = sys.argv[1]
-    os.mkdir(dirname)
-    os.chdir(dirname)
-
     params = {
-        'learning_rate': 1e-5,
+        'learning_rate': 1e-3,
         'multiplier': 1,
-        'lambdas': (1, 8, 0, 0.005),
-        'nb_train': 1,    # Only meaningful if it's less than the training set size
+        'lambdas': (1, 0, 0, 0),
+        'nb_train': 5000,    # Only meaningful if it's less than the training set size
         'nb_val': 0,
         'validate_every': 1000,  # How often to evaluate the validation set (iterations)
         'epochs': 10,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
-        'batch_size': 1,
+        'batch_size': 16,
         'verbose': True,
         'epochs_per_checkpoint': 1,
-        'optimizer': 'sgd',
+        'optimizer': 'adam',
         'debug': True,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
         'max_grad': 1,  # Max norm of gradients. Set to None for no clipping
         'initial_train_mode': 'weights',
-        'alternate_every': 1    # Switch training mode after this many epochs
+        'alternate_every': 1,    # Switch training mode after this many epochs
+        'warm_start': True,
+        'weights_file': 'epoch_0.pt'
     }
+    if len(sys.argv) != 2:
+        raise Exception('Usage: python trainer.py <output_dir>')
+    dirname = sys.argv[1]
+    if not params['warm_start']:
+        os.mkdir(dirname)
+    os.chdir(dirname)
 
     run(params)
