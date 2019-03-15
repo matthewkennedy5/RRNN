@@ -147,8 +147,8 @@ class RRNNTrainer:
 
         # Average out the loss
         loss_hist = np.mean(loss_hist, axis=0)
-        loss_fn /= batch_size
-        train_acc /= batch_size  # Training accuracy is per batch -- very noisy
+        loss_fn /= X_batch.shape[0]
+        train_acc /= X_batch.shape[0]  # Training accuracy is per batch -- very noisy
 
         loss_fn.backward()
 
@@ -363,7 +363,7 @@ if __name__ == '__main__':
     params = {
         'learning_rate': 1e-5,
         'multiplier': 1,
-        'lambdas': (1, 8, 0, 0.005),
+        'lambdas': (1, 0, 0, 0),
         'nb_train': 5000,    # Only meaningful if it's less than the training set size
         'nb_val': 0,
         'validate_every': 1000,  # How often to evaluate the validation set (iterations)
@@ -371,11 +371,11 @@ if __name__ == '__main__':
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
-        'batch_size': 2,
+        'batch_size': 16,
         'verbose': True,
         'epochs_per_checkpoint': 1,
         'optimizer': 'sgd',
-        'debug': False,  # Turns multiprocessing off so pdb works
+        'debug': True,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
         'max_grad': 1  # Max value of gradients. Set to None for no clipping
