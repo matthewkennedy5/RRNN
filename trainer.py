@@ -57,6 +57,42 @@ class RRNNTrainer:
         # TODO: Change this variable name--it's not a true iteration count. It
         # increments multiple times per batch.
         self.iter_count = torch.zeros(1, dtype=torch.int32).share_memory_()
+        self.train_mode = params['initial_train_mode']
+
+    def switch_train_mode(self):
+        """Switches the train mode and freezes parameters from the other mode.
+
+        The training mode corresponds to which parameters we're trying to train.
+        We are alternating between training the scoring NN and the L, R, b,
+        output weights of the RRNN, since training them both at the same time
+        interferes with each other.
+        """
+        if self.train_mode == 'weights':
+            self.train_mode = 'scoring'
+        else:
+            self.train_mode = 'weights'
+        print('[INFO] Switching to training the', self.train_mode)
+        self.freeze_params()
+
+    def freeze_params(self):
+        # Freeze the parameters we're not trying to train
+        names = [name for name, _ in self.model.named_parameters()]
+        freeze = []
+        if self.train_mode == 'scoring':
+            for name in names:
+                if ('L_list' in name or 'R_list' in name
+                        or 'b_list' in name or 'output_layer' in name):
+                    freeze.append(name)
+        elif self.train_mode =='weights':
+            for name in names:
+                if 'scoring' in name:
+                    freeze.append(name)
+
+        for name, param in self.model.named_parameters():
+            if name in freeze:
+                param.requires_grad = False
+            else:
+                param.requires_grad = True
 
     def batch_generator(self):
         epochs = self.params['epochs']
@@ -68,6 +104,11 @@ class RRNNTrainer:
             self.X_train = self.X_train[shuffle_order]
             self.y_train = self.y_train[shuffle_order]
 
+            if epoch == 0:
+                self.freeze_params()
+            elif epoch % self.params['alternate_every'] == 0:
+                self.switch_train_mode()
+
             if self.params['verbose']:
                 print('\n\nEpoch ' + str(epoch + 1))
 
@@ -77,7 +118,6 @@ class RRNNTrainer:
 
             X_batches = []
             y_batches = []
-            # process = 0
             n_processes = self.params['n_processes']
             partition_size = batch_size * n_processes
             for p in range(0, self.X_train.size()[0], partition_size):
@@ -366,21 +406,23 @@ if __name__ == '__main__':
         'learning_rate': 1e-5,
         'multiplier': 1,
         'lambdas': (1, 8, 0, 0.005),
-        'nb_train': 5000,    # Only meaningful if it's less than the training set size
+        'nb_train': 1,    # Only meaningful if it's less than the training set size
         'nb_val': 0,
         'validate_every': 1000,  # How often to evaluate the validation set (iterations)
         'epochs': 10,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
-        'batch_size': 2,
+        'batch_size': 1,
         'verbose': True,
         'epochs_per_checkpoint': 1,
         'optimizer': 'sgd',
-        'debug': False,  # Turns multiprocessing off so pdb works
+        'debug': True,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
-        'max_grad': 1  # Max value of gradients. Set to None for no clipping
+        'max_grad': 1,  # Max norm of gradients. Set to None for no clipping
+        'initial_train_mode': 'weights',
+        'alternate_every': 1    # Switch training mode after this many epochs
     }
 
     run(params)
