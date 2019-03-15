@@ -36,14 +36,20 @@ class RRNNTrainer:
         X_train - Training data. List of 3D torch tensors.
         y_train - Training labels (one-hot)
     """
-    def __init__(self, model, gru_model, X_train, y_train, X_val, y_val, optimizer, params):
+    def __init__(self, model, gru_model, X_train, y_train, X_val, y_val, params):
         self.model = model
         self.gru_model = gru_model
         self.X_train = X_train
         self.y_train = y_train
         self.X_val = X_val
         self.y_val = y_val
+
+        if params['optimizer'] == 'adam':
+            optimizer = torch.optim.Adam(self.model.parameters(), lr=params['learning_rate'])
+        elif params['optimizer'] == 'sgd':
+            optimizer = torch.optim.SGD(self.model.parameters(), lr=params['learning_rate'])
         self.optimizer = optimizer
+
         self.params = params
         self.lamb1, self.lamb2, self.lamb3, self.lamb4 = params['lambdas']
         # self.loss = torch.nn.KLDivLoss()
@@ -322,10 +328,6 @@ def run(params):
     model.share_memory()
     gru_model.share_memory()
 
-    if params['optimizer'] == 'adam':
-        optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
-    elif params['optimizer'] == 'sgd':
-        optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'])
 
     filename = os.path.join('..', params['data_file'])  # Since we're in the output dir
     print('[INFO] Loading training data into memory.')
@@ -342,7 +344,7 @@ def run(params):
     print('[INFO] Beginning training with %d training samples and %d '
           'validation samples.' % (X_train.size()[0], X_val.size()[0]))
 
-    trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, optimizer, params)
+    trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, params)
     trainer.train(params['epochs'], n_processes=params['n_processes'])
 
     runtime = time.time() - start
