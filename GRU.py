@@ -20,7 +20,6 @@ device = torch.device('cpu')
 #    device = torch.device('cuda:0')
 
 timer = time.time()
-DEFAULT_MULTIPLIER = 1e-3
 
 def retrieve_node(string, x, h_prev, G_node):
     '''
@@ -70,12 +69,11 @@ def retrieve_binary_func(string, vec1, vec2):
 
 class RRNNforGRUCell(nn.Module):
 
-    def __init__(self, hidden_size, multiplier=DEFAULT_MULTIPLIER, scoring_hsize=None):
+    def __init__(self, hidden_size, multiplier, scoring_hsize=None):
         super(RRNNforGRUCell, self).__init__()
         self.multiplier = multiplier    # multiplier for the activation functions and initialization
                                         # of parameter matrices
         self.hidden_size = hidden_size
-        self.activations_func_list = ['sigmoid', 'tanh', 'minus', 'identity']
         self.binary_ops_list = ['mul', 'add']
         self.m = 1  # Num of output vectors
         self.N = 9  # Num of generated nodes in one cell
@@ -286,7 +284,7 @@ class RRNNforGRUCell(nn.Module):
 
 class RRNNforGRU(nn.Module):
 
-    def __init__(self, hidden_size, vocab_size, multiplier=DEFAULT_MULTIPLIER, scoring_hsize=None):
+    def __init__(self, hidden_size, vocab_size, multiplier, scoring_hsize=None):
         super(RRNNforGRU, self).__init__()
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
