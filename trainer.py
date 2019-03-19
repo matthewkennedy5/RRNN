@@ -361,20 +361,20 @@ if __name__ == '__main__':
     os.chdir(dirname)
 
     params = {
-        'learning_rate': 1e-5,
+        'learning_rate': 1e-4,
         'multiplier': 1,
-        'lambdas': (1, 0, 0, 0),
-        'nb_train': 5000,    # Only meaningful if it's less than the training set size
+        'lambdas': (1, 8, 0, 0.003),
+        'nb_train': 30,    # Only meaningful if it's less than the training set size
         'nb_val': 0,
         'validate_every': 1000,  # How often to evaluate the validation set (iterations)
-        'epochs': 10,
+        'epochs': 1,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
         'batch_size': 16,
         'verbose': True,
         'epochs_per_checkpoint': 1,
-        'optimizer': 'sgd',
+        'optimizer': 'adam',
         'debug': True,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',

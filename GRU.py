@@ -40,10 +40,10 @@ def retrieve_activation_func(string, vec, multiplier):
     '''
         return a vector with given activation function
     '''
-    if vec.abs().max() > 1 and string not in ['tanh', 'sigmoid']:
-        if vec.abs().max() > 1.05:
-            print('\nVector element > 1.05: ')
-            print(vec[vec.abs() > 1])
+    # if vec.abs().max() > 1 and string not in ['tanh', 'sigmoid']:
+    #     if vec.abs().max() > 1.05:
+    #         print('\nVector element > 1.05: ' + string)
+    #         print(vec[vec.abs() > 1])
     if string == 'tanh':
         return multiplier * torch.tanh(vec)
     elif string == 'sigmoid':
@@ -52,6 +52,8 @@ def retrieve_activation_func(string, vec, multiplier):
         return 1-vec
     elif string == 'identity':
         return vec
+    elif string == 'relu':
+        return multiplier * torch.relu(vec)
     else:
         raise ValueError
 
@@ -164,11 +166,15 @@ class RRNNforGRUCell(nn.Module):
                                 else:   # elif binary_func == 'mul':
                                     res = torch.mm(s_i, L) * torch.mm(s_j, R) + b
                                 if res.abs().max() >= 1:    # if the maximum entry of the vector is larger than 1, we could not use 1-x
-                                                            # or x as the unary function, thus we can keep the entries within [-1, 1]
+                                                            # as the unary function, thus we can keep the entries within [-1, 1]
                                     V_r.append(self.multiplier*torch.sigmoid(res))
                                     V_structure.append([i, j, k, binary_func, 'sigmoid'])
                                     V_r.append(self.multiplier*torch.tanh(res))
                                     V_structure.append([i, j, k, binary_func, 'tanh'])
+                                    V_r.append(self.multiplier*torch.relu(res))
+                                    V_structure.append([i, j, k, binary_func, 'relu'])
+                                    V_r.append(res)
+                                    V_structure.append([i, j, k, binary_func, 'identity'])
                                 else:
                                     V_r.append(self.multiplier * torch.sigmoid(res))
                                     V_structure.append([i, j, k, binary_func, 'sigmoid'])
@@ -178,6 +184,8 @@ class RRNNforGRUCell(nn.Module):
                                     V_structure.append([i, j, k, binary_func, 'minus'])
                                     V_r.append(res)
                                     V_structure.append([i, j, k, binary_func, 'identity'])
+                                    V_r.append(self.multiplier*torch.relu(res))
+                                    V_structure.append([i, j, k, binary_func, 'relu'])
 
             scores_list = [self.scoring(v).item() for v in V_r] # calculate the scores for each vector
             max_index = np.argmax(scores_list)  # find the index of the vector with highest score
