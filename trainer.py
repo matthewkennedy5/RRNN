@@ -322,10 +322,18 @@ def run(params):
     model.share_memory()
     gru_model.share_memory()
 
+    lr = params['learning_rates']
+    optim_params = [
+        {'params': model.output_layer.parameters(), 'lr': lr[0]},
+        {'params': model.cell.L_list.parameters(), 'lr': lr[1]},
+        {'params': model.cell.R_list.parameters(), 'lr': lr[1]},
+        {'params': model.cell.b_list.parameters(), 'lr': lr[1]},
+        {'params': model.cell.scoring.parameters(), 'lr': lr[2]}
+    ]
     if params['optimizer'] == 'adam':
-        optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
+        optimizer = torch.optim.Adam(optim_params)
     elif params['optimizer'] == 'sgd':
-        optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'])
+        optimizer = torch.optim.SGD(optim_params)
 
     filename = os.path.join('..', params['data_file'])  # Since we're in the output dir
     print('[INFO] Loading training data into memory.')
@@ -361,7 +369,7 @@ if __name__ == '__main__':
     os.chdir(dirname)
 
     params = {
-        'learning_rate': 1e-5,
+        'learning_rates': (1e-5, 1e-3, 1e-3),   # Per-layer learning rates: (output, L/R/b, scoring)
         'multiplier': 1,
         'lambdas': (1, 0, 0, 0),
         'nb_train': 5000,    # Only meaningful if it's less than the training set size
@@ -371,7 +379,7 @@ if __name__ == '__main__':
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
-        'batch_size': 16,
+        'batch_size': 1,
         'verbose': True,
         'epochs_per_checkpoint': 1,
         'optimizer': 'sgd',
