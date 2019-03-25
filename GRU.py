@@ -201,7 +201,7 @@ class RRNNforGRUCell(nn.Module):
 
             max_vector = torch.zeros(V_r[0].size())
             for index, v in enumerate(V_r):
-                max_vector += v * probabilities[i]
+                max_vector += v * probabilities[index]
 
             # Also grab the 2nd highest scoring vector and structure to be used
             # in the calculation of loss2
