@@ -43,6 +43,14 @@ def random_params():
               'batch size': batch_size}
     return params
 
+def finer_random_params():
+    reg = 10 ** np.random.uniform(-16, -7)
+    learning_rate = 10 ** np.random.uniform(-4, -2)
+    epochs = 20
+    batch_size = int(2 ** np.random.uniform(4, 6))
+    params = {'reg': reg, 'learning rate': learning_rate, 'epochs': epochs,
+              'batch size': batch_size}
+    return params
 
 def run(params):
     model = Sequential([
@@ -65,7 +73,7 @@ def random_hyperparam_search(n_runs):
     best_params = None
     lowest_val_loss = np.Inf
     for i in trange(N_RANDOM_SEARCH):
-        params = random_params()
+        params = finer_random_params()
         print('-'*70)
         print('[INFO] Trying the following hyperparameters:')
         pprint(params)
@@ -76,6 +84,8 @@ def random_hyperparam_search(n_runs):
             lowest_val_loss = val_loss
             best_params = params
         print('[INFO] Best validation loss achieved for this run: %f' % (val_loss,))
+        print('[INFO] Best hyperparameters found: ')
+        pprint(best_params)
 
     print('[INFO] Random search complete.')
     print('[INFO] Best hyperparameters found: ')
@@ -124,11 +134,14 @@ def plot_bpc(history):
 
 if __name__=='__main__':
 
-    params = {'learning rate': 1e-4,
-              'batch size': 64,
-              'reg': 0,
-              'epochs': 200}
-    plot_bpc(run(params))
+    # params = {'learning rate': 0.0014231284439820875,
+    #           'batch size': 41,
+    #           'reg': 1.212381312263729e-11,
+    #           'epochs': 30}
+    # history = run(params)
+    # plot_results(history)
+    # plot_bpc(history)
+    random_hyperparam_search(100)
 
 
 
