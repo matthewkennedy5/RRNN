@@ -401,17 +401,17 @@ def run(params):
 if __name__ == '__main__':
 
     params = {
-        'learning_rate': 1e-3,
+        'learning_rate': 1e-4,
         'multiplier': 1,
         'lambdas': (1, 0, 0, 0),
         'nb_train': 5000,    # Only meaningful if it's less than the training set size
         'nb_val': 0,
-        'validate_every': 1000,  # How often to evaluate the validation set (iterations)
+        'validate_every': np.Inf,  # How often to evaluate the validation set (iterations)
         'epochs': 10,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
-        'batch_size': 16,
+        'batch_size': 1,
         'verbose': True,
         'epochs_per_checkpoint': 1,
         'optimizer': 'adam',
@@ -421,7 +421,7 @@ if __name__ == '__main__':
         'max_grad': 1,  # Max norm of gradients. Set to None for no clipping
         'initial_train_mode': 'weights',
         'alternate_every': 1,    # Switch training mode after this many epochs
-        'warm_start': True,
+        'warm_start': False,
         'weights_file': 'epoch_0.pt'
     }
     if len(sys.argv) != 2:
