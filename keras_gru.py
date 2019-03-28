@@ -35,7 +35,7 @@ y_test = y_test.numpy()
 
 
 def random_params():
-    reg = 10 ** np.random.uniform(-8, 0)
+    reg = 10 ** np.random.uniform(-16, 0)
     learning_rate = 10 ** np.random.uniform(-5, -1)
     epochs = 10
     batch_size = int(2 ** np.random.uniform(3, 8))
@@ -73,7 +73,7 @@ def random_hyperparam_search(n_runs):
     best_params = None
     lowest_val_loss = np.Inf
     for i in trange(N_RANDOM_SEARCH):
-        params = finer_random_params()
+        params = random_params()
         print('-'*70)
         print('[INFO] Trying the following hyperparameters:')
         pprint(params)
@@ -84,8 +84,9 @@ def random_hyperparam_search(n_runs):
             lowest_val_loss = val_loss
             best_params = params
         print('[INFO] Best validation loss achieved for this run: %f' % (val_loss,))
-        print('[INFO] Best hyperparameters found: ')
+        print('[INFO] Best hyperparameters found so far: ')
         pprint(best_params)
+        print('[INFO] Best validation loss achieved so far: ' + string(lowest_val_loss))
 
     print('[INFO] Random search complete.')
     print('[INFO] Best hyperparameters found: ')
