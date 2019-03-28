@@ -41,9 +41,10 @@ def retrieve_activation_func(string, vec, multiplier):
         return a vector with given activation function
     '''
     if vec.abs().max() > 1 and string not in ['tanh', 'sigmoid']:
-        if vec.abs().max() > 1.05:
-            print('\nVector element > 1.05: ')
-            print(vec[vec.abs() > 1])
+        # if vec.abs().max() > 1.05:
+        #     print('\nVector element > 1.05: ')
+        #     print(vec[vec.abs() > 1])
+        pass
     if string == 'tanh':
         return multiplier * torch.tanh(vec)
     elif string == 'sigmoid':
@@ -180,10 +181,11 @@ class RRNNforGRUCell(nn.Module):
                                 else:   # elif binary_func == 'mul':
                                     res = torch.mm(s_i, L) * torch.mm(s_j, R) + b
 
-                                res /= 10
+                                # if k == 0:
+                                #     print(res.max().item())
 
                                 # Apply the activation function
-                                if res.abs().max() >= 1:    # if the maximum entry of the vector is larger than 1, we could not use 1-x
+                                if k != 0 and res.abs().max() >= 1:    # if the maximum entry of the vector is larger than 1, we could not use 1-x
                                                             # or x as the unary function, thus we can keep the entries within [-1, 1]
                                     V_r.append(self.multiplier*torch.sigmoid(res))
                                     V_structure.append([i, j, k, binary_func, 'sigmoid'])
@@ -205,7 +207,7 @@ class RRNNforGRUCell(nn.Module):
             max_structure = V_structure[max_index]
 
             TEMPERATURE = 1
-            GUMBEL = True
+            GUMBEL = False
             candidate_vectors = torch.stack(V_r)
             scores = self.scoring(candidate_vectors).squeeze()
             if GUMBEL:
@@ -282,8 +284,6 @@ class RRNNforGRUCell(nn.Module):
             else:   # elif binary_func == 'mul':
                 res = torch.mm(left_node.vector, L) * torch.mm(right_node.vector, R) + b
 
-            res /= 10
-
             res = retrieve_activation_func(activation_func, res, self.multiplier)
 
             node = Node(G[idx], name, structure=G_structure[idx], left_child=left_node, right_child=right_node)
@@ -334,6 +334,8 @@ class RRNNforGRU(nn.Module):
             pred_tree_list.append(G_node)
             scores.append(scores_list)
 
+        from pprint import pprint
+        pprint(structures)
         return (pred_chars, h_list, pred_tree_list, scores_list,
                second_scores_list, G_structure)
 
