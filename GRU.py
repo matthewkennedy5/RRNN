@@ -82,6 +82,22 @@ class RRNNforGRUCell(nn.Module):
         self.R_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.randn(hidden_size, hidden_size)) for _ in range(self.l)])
         self.b_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.randn(1, hidden_size)) for _ in range(self.l)])
 
+        #################################################
+        # Set L0, R0, b0 to the identity transformation #
+        self.L_list[0] = nn.Parameter(torch.eye(hidden_size))
+        self.R_list[0] = nn.Parameter(torch.eye(hidden_size))
+        self.b_list[0] = nn.Parameter(torch.zeros(1, hidden_size))
+        self.L_list[0].requires_grad = False
+        self.R_list[0].requires_grad = False
+        self.b_list[0].requires_grad = False
+        #################################################
+
+        self.batchnorm = nn.BatchNorm1d(hidden_size)
+        # Initialize gamma = 0.1 as in the Recurrent Batch Normalization paper
+        self.batchnorm.weight = nn.Parameter(torch.tensor(0.1))
+        # Disable beta to avoid redundancy with the b bias term
+        self.batchnorm.bias.requires_grad = False
+
         if scoring_hsize is not None:
             self.scoring = nn.Sequential(
                                 nn.Linear(hidden_size, scoring_hsize),
@@ -163,6 +179,10 @@ class RRNNforGRUCell(nn.Module):
                                     res = torch.mm(s_i, L) + torch.mm(s_j, R) + b
                                 else:   # elif binary_func == 'mul':
                                     res = torch.mm(s_i, L) * torch.mm(s_j, R) + b
+
+                                res /= 10
+
+                                # Apply the activation function
                                 if res.abs().max() >= 1:    # if the maximum entry of the vector is larger than 1, we could not use 1-x
                                                             # or x as the unary function, thus we can keep the entries within [-1, 1]
                                     V_r.append(self.multiplier*torch.sigmoid(res))
@@ -261,6 +281,8 @@ class RRNNforGRUCell(nn.Module):
                 res = torch.mm(left_node.vector, L) + torch.mm(right_node.vector, R) + b
             else:   # elif binary_func == 'mul':
                 res = torch.mm(left_node.vector, L) * torch.mm(right_node.vector, R) + b
+
+            res /= 10
 
             res = retrieve_activation_func(activation_func, res, self.multiplier)
 
