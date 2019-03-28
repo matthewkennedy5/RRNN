@@ -35,19 +35,10 @@ y_test = y_test.numpy()
 
 
 def random_params():
-    reg = 10 ** np.random.uniform(-16, 0)
-    learning_rate = 10 ** np.random.uniform(-5, -1)
-    epochs = 10
-    batch_size = int(2 ** np.random.uniform(3, 8))
-    params = {'reg': reg, 'learning rate': learning_rate, 'epochs': epochs,
-              'batch size': batch_size}
-    return params
-
-def finer_random_params():
-    reg = 10 ** np.random.uniform(-16, -7)
-    learning_rate = 10 ** np.random.uniform(-4, -2)
+    reg = 10 ** np.random.uniform(-8, -6)
+    learning_rate = 10 ** np.random.uniform(-4, -1)
     epochs = 20
-    batch_size = int(2 ** np.random.uniform(4, 6))
+    batch_size = int(2 ** np.random.uniform(3, 5))
     params = {'reg': reg, 'learning rate': learning_rate, 'epochs': epochs,
               'batch size': batch_size}
     return params
@@ -86,7 +77,7 @@ def random_hyperparam_search(n_runs):
         print('[INFO] Best validation loss achieved for this run: %f' % (val_loss,))
         print('[INFO] Best hyperparameters found so far: ')
         pprint(best_params)
-        print('[INFO] Best validation loss achieved so far: ' + string(lowest_val_loss))
+        print('[INFO] Best validation loss achieved so far: ' + str(lowest_val_loss))
 
     print('[INFO] Random search complete.')
     print('[INFO] Best hyperparameters found: ')
@@ -159,3 +150,8 @@ if __name__=='__main__':
 # plt.show()
 # plt.savefig('loss.png')
 
+# [INFO] Best hyperparameters found:
+# {'batch size': 18,
+#  'epochs': 10,
+#  'learning rate': 0.0017111124938516654,
+#  'reg': 3.5989197176496724e-07}
