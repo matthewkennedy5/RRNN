@@ -36,14 +36,20 @@ class RRNNTrainer:
         X_train - Training data. List of 3D torch tensors.
         y_train - Training labels (one-hot)
     """
-    def __init__(self, model, gru_model, X_train, y_train, X_val, y_val, optimizer, params):
+    def __init__(self, model, gru_model, X_train, y_train, X_val, y_val, params):
         self.model = model
         self.gru_model = gru_model
         self.X_train = X_train
         self.y_train = y_train
         self.X_val = X_val
         self.y_val = y_val
+
+        if params['optimizer'] == 'adam':
+            optimizer = torch.optim.Adam(self.model.parameters(), lr=params['learning_rate'])
+        elif params['optimizer'] == 'sgd':
+            optimizer = torch.optim.SGD(self.model.parameters(), lr=params['learning_rate'])
         self.optimizer = optimizer
+
         self.params = params
         self.lamb1, self.lamb2, self.lamb3, self.lamb4 = params['lambdas']
         # self.loss = torch.nn.KLDivLoss()
@@ -51,6 +57,42 @@ class RRNNTrainer:
         # TODO: Change this variable name--it's not a true iteration count. It
         # increments multiple times per batch.
         self.iter_count = torch.zeros(1, dtype=torch.int32).share_memory_()
+        self.train_mode = params['initial_train_mode']
+
+    def switch_train_mode(self):
+        """Switches the train mode and freezes parameters from the other mode.
+
+        The training mode corresponds to which parameters we're trying to train.
+        We are alternating between training the scoring NN and the L, R, b,
+        output weights of the RRNN, since training them both at the same time
+        interferes with each other.
+        """
+        if self.train_mode == 'weights':
+            self.train_mode = 'scoring'
+        else:
+            self.train_mode = 'weights'
+        print('[INFO] Switching to training the', self.train_mode)
+        self.freeze_params()
+
+    def freeze_params(self):
+        # Freeze the parameters we're not trying to train
+        names = [name for name, _ in self.model.named_parameters()]
+        freeze = []
+        if self.train_mode == 'scoring':
+            for name in names:
+                if ('L_list' in name or 'R_list' in name
+                        or 'b_list' in name or 'output_layer' in name):
+                    freeze.append(name)
+        elif self.train_mode =='weights':
+            for name in names:
+                if 'scoring' in name:
+                    freeze.append(name)
+
+        for name, param in self.model.named_parameters():
+            if name in freeze:
+                param.requires_grad = False
+            else:
+                param.requires_grad = True
 
     def batch_generator(self):
         epochs = self.params['epochs']
@@ -62,6 +104,11 @@ class RRNNTrainer:
             self.X_train = self.X_train[shuffle_order]
             self.y_train = self.y_train[shuffle_order]
 
+            if epoch == 0:
+                self.freeze_params()
+            elif epoch % self.params['alternate_every'] == 0:
+                self.switch_train_mode()
+
             if self.params['verbose']:
                 print('\n\nEpoch ' + str(epoch + 1))
 
@@ -71,7 +118,6 @@ class RRNNTrainer:
 
             X_batches = []
             y_batches = []
-            # process = 0
             n_processes = self.params['n_processes']
             partition_size = batch_size * n_processes
             for p in range(0, self.X_train.size()[0], partition_size):
@@ -318,14 +364,14 @@ def run(params):
     gru_model = torch.load('../gru_parameters.pkl')
     model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['multiplier'],
                        params['scoring_hidden_size'])
+    if params['warm_start']:
+        weights = params['weights_file']
+        print('[INFO] Warm starting from ' + weights + '.')
+        model.load_state_dict(torch.load(weights))
 
     model.share_memory()
     gru_model.share_memory()
 
-    if params['optimizer'] == 'adam':
-        optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
-    elif params['optimizer'] == 'sgd':
-        optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'])
 
     filename = os.path.join('..', params['data_file'])  # Since we're in the output dir
     print('[INFO] Loading training data into memory.')
@@ -342,7 +388,7 @@ def run(params):
     print('[INFO] Beginning training with %d training samples and %d '
           'validation samples.' % (X_train.size()[0], X_val.size()[0]))
 
-    trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, optimizer, params)
+    trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, params)
     trainer.train(params['epochs'], n_processes=params['n_processes'])
 
     runtime = time.time() - start
@@ -354,14 +400,8 @@ def run(params):
 
 if __name__ == '__main__':
 
-    if len(sys.argv) != 2:
-        raise Exception('Usage: python trainer.py <output_dir>')
-    dirname = sys.argv[1]
-    os.mkdir(dirname)
-    os.chdir(dirname)
-
     params = {
-        'learning_rate': 1e-5,
+        'learning_rate': 1e-3,
         'multiplier': 1,
         'lambdas': (1, 0, 0, 0),
         'nb_train': 5000,    # Only meaningful if it's less than the training set size
@@ -374,11 +414,21 @@ if __name__ == '__main__':
         'batch_size': 16,
         'verbose': True,
         'epochs_per_checkpoint': 1,
-        'optimizer': 'sgd',
+        'optimizer': 'adam',
         'debug': True,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
-        'max_grad': 1  # Max value of gradients. Set to None for no clipping
+        'max_grad': 1,  # Max norm of gradients. Set to None for no clipping
+        'initial_train_mode': 'weights',
+        'alternate_every': 1,    # Switch training mode after this many epochs
+        'warm_start': True,
+        'weights_file': 'epoch_0.pt'
     }
+    if len(sys.argv) != 2:
+        raise Exception('Usage: python trainer.py <output_dir>')
+    dirname = sys.argv[1]
+    if not params['warm_start']:
+        os.mkdir(dirname)
+    os.chdir(dirname)
 
     run(params)
