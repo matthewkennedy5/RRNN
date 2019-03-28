@@ -40,11 +40,10 @@ def retrieve_activation_func(string, vec, multiplier):
     '''
         return a vector with given activation function
     '''
-    if vec.abs().max() > 1 and string not in ['tanh', 'sigmoid']:
-        # if vec.abs().max() > 1.05:
-        #     print('\nVector element > 1.05: ')
-        #     print(vec[vec.abs() > 1])
-        pass
+    # if vec.abs().max() > 1 and string not in ['tanh', 'sigmoid']:
+    #     if vec.abs().max() > 1.05:
+    #         print('\nVector element > 1.05: ' + string)
+    #         print(vec[vec.abs() > 1])
     if string == 'tanh':
         return multiplier * torch.tanh(vec)
     elif string == 'sigmoid':
@@ -53,6 +52,8 @@ def retrieve_activation_func(string, vec, multiplier):
         return 1-vec
     elif string == 'identity':
         return vec
+    elif string == 'relu':
+        return multiplier * torch.relu(vec)
     else:
         raise ValueError
 
@@ -200,6 +201,8 @@ class RRNNforGRUCell(nn.Module):
                                     V_structure.append([i, j, k, binary_func, 'minus'])
                                     V_r.append(res)
                                     V_structure.append([i, j, k, binary_func, 'identity'])
+                                    V_r.append(self.multiplier*torch.relu(res))
+                                    V_structure.append([i, j, k, binary_func, 'relu'])
 
             scores_list = [self.scoring(v).item() for v in V_r] # calculate the scores for each vector
             max_index = np.argmax(scores_list)  # find the index of the vector with highest score

@@ -403,8 +403,8 @@ if __name__ == '__main__':
     params = {
         'learning_rate': 1e-4,
         'multiplier': 1,
-        'lambdas': (1, 0, 0, 0),
-        'nb_train': 5000,    # Only meaningful if it's less than the training set size
+        'lambdas': (1, 8, 0, 0.003),
+        'nb_train': 30,    # Only meaningful if it's less than the training set size
         'nb_val': 0,
         'validate_every': np.Inf,  # How often to evaluate the validation set (iterations)
         'epochs': 10,
