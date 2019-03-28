@@ -371,7 +371,7 @@ if __name__ == '__main__':
     params = {
         'learning_rates': (1e-5, 1e-3, 1e-3),   # Per-layer learning rates: (output, L/R/b, scoring)
         'multiplier': 1,
-        'lambdas': (1, 0, 0, 0),
+        'lambdas': (1, 8, 0, 0.003),
         'nb_train': 5000,    # Only meaningful if it's less than the training set size
         'nb_val': 0,
         'validate_every': 1000,  # How often to evaluate the validation set (iterations)
@@ -379,11 +379,11 @@ if __name__ == '__main__':
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
-        'batch_size': 1,
+        'batch_size': 16,
         'verbose': True,
         'epochs_per_checkpoint': 1,
-        'optimizer': 'sgd',
-        'debug': True,  # Turns multiprocessing off so pdb works
+        'optimizer': 'adam',
+        'debug': False,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
         'max_grad': 1  # Max value of gradients. Set to None for no clipping
