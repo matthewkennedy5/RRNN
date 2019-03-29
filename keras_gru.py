@@ -126,14 +126,15 @@ def plot_bpc(history):
 
 if __name__=='__main__':
 
-    # params = {'learning rate': 0.0014231284439820875,
-    #           'batch size': 41,
-    #           'reg': 1.212381312263729e-11,
-    #           'epochs': 30}
-    # history = run(params)
+    params = {'batch size': 10,
+              'epochs': 40,
+              'learning rate': 0.0005193665291051191,
+              'reg': 7.017320195906407e-07}
+
+    history = run(params)
     # plot_results(history)
     # plot_bpc(history)
-    random_hyperparam_search(100)
+    # random_hyperparam_search(100)
 
 
 

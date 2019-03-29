@@ -198,12 +198,19 @@ class RRNNTrainer:
 
         loss_fn.backward()
 
+        # for name, p in self.model.named_parameters():
+        #     if p.grad is not None:
+        #         print(name, p.grad.norm().item())
+        #     else:
+        #         print(name)
+
         # Clip gradients elementwise.
         # max_grad = self.params['max_grad']
         # if max_grad is not None:
         #     for p in self.model.parameters():
         #         p.grad.data.clamp_(-max_grad, max_grad)
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.params['max_grad'])
+        if self.params['max_grad'] is not None:
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.params['max_grad'])
 
         self.optimizer.step()
         self.iter_count += 1
@@ -403,8 +410,8 @@ if __name__ == '__main__':
     params = {
         'learning_rate': 1e-4,
         'multiplier': 1,
-        'lambdas': (1, 8, 0, 0.003),
-        'nb_train': 30,    # Only meaningful if it's less than the training set size
+        'lambdas': (1, 0, 0, 0),
+        'nb_train': 5000,    # Only meaningful if it's less than the training set size
         'nb_val': 0,
         'validate_every': np.Inf,  # How often to evaluate the validation set (iterations)
         'epochs': 10,
@@ -418,7 +425,7 @@ if __name__ == '__main__':
         'debug': True,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
-        'max_grad': 1,  # Max norm of gradients. Set to None for no clipping
+        'max_grad': None,  # Max norm of gradients. Set to None for no clipping
         'initial_train_mode': 'weights',
         'alternate_every': 1,    # Switch training mode after this many epochs
         'warm_start': False,

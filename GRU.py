@@ -89,16 +89,11 @@ class RRNNforGRUCell(nn.Module):
         self.L_list[0] = nn.Parameter(torch.eye(hidden_size))
         self.R_list[0] = nn.Parameter(torch.eye(hidden_size))
         self.b_list[0] = nn.Parameter(torch.zeros(1, hidden_size))
+        # Freeze them - they won't train to something else
         self.L_list[0].requires_grad = False
         self.R_list[0].requires_grad = False
         self.b_list[0].requires_grad = False
         #################################################
-
-        self.batchnorm = nn.BatchNorm1d(hidden_size)
-        # Initialize gamma = 0.1 as in the Recurrent Batch Normalization paper
-        self.batchnorm.weight = nn.Parameter(torch.tensor(0.1))
-        # Disable beta to avoid redundancy with the b bias term
-        self.batchnorm.bias.requires_grad = False
 
         if scoring_hsize is not None:
             self.scoring = nn.Sequential(
@@ -337,8 +332,6 @@ class RRNNforGRU(nn.Module):
             pred_tree_list.append(G_node)
             scores.append(scores_list)
 
-        from pprint import pprint
-        pprint(structures)
         return (pred_chars, h_list, pred_tree_list, scores_list,
                second_scores_list, G_structure)
 
