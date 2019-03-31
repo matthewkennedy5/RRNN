@@ -85,14 +85,14 @@ class RRNNforGRUCell(nn.Module):
         self.b_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.randn(1, hidden_size)) for _ in range(self.l)])
 
         #################################################
-        # Set L0, R0, b0 to the identity transformation #
-        self.L_list[0] = nn.Parameter(torch.eye(hidden_size))
-        self.R_list[0] = nn.Parameter(torch.eye(hidden_size))
-        self.b_list[0] = nn.Parameter(torch.zeros(1, hidden_size))
+        # Set L3, R3, b3 to the identity transformation #
+        self.L_list[3] = nn.Parameter(torch.eye(hidden_size))
+        self.R_list[3] = nn.Parameter(torch.eye(hidden_size))
+        self.b_list[3] = nn.Parameter(torch.zeros(1, hidden_size))
         # Freeze them - they won't train to something else
-        self.L_list[0].requires_grad = False
-        self.R_list[0].requires_grad = False
-        self.b_list[0].requires_grad = False
+        self.L_list[3].requires_grad = False
+        self.R_list[3].requires_grad = False
+        self.b_list[3].requires_grad = False
         #################################################
 
         if scoring_hsize is not None:
@@ -121,6 +121,37 @@ class RRNNforGRUCell(nn.Module):
         """
         return False    # TODO: Implement
 
+    def vector_is_in_gru(self, structure, r, candidate_names):
+        # x = 0   # Indicies of x and h in the components_list array
+        # h = 1
+        gru_structure = {
+            0: ['x', 'h', 0, 'add', 'sigmoid'],   # z1
+            1: ['x', 'h', 1, 'add', 'sigmoid'],   # r
+            2: ['x', 'h', 0, 'add', 'sigmoid'],   # z2
+            3: ['G1', 'h', 3, 'mul', 'identity'], # r*h
+            4: ['G3', 'x', 2, 'add', 'tanh'], # h_tilde
+            5: ['G0', '0', 3, 'add', 'minus'],    # 1-z
+            6: ['G4', 'G5', 3, 'mul', 'identity'],    # (1-z)*h_tilde
+            7: ['G2', 'h', 3, 'mul', 'identity'], # z*h
+            8: ['G6', 'G7', 3, 'add', 'identity']    # h_t}
+        }
+        true_structure = gru_structure[r]
+        left, right, weight, binary, activation = range(5)
+        # left and right are the same
+        pred_left = candidate_names[structure[left]]
+        pred_right = candidate_names[structure[right]]
+
+        # This accounts for how the children may be swapped since the binary
+        # functions are commutative.
+        if (true_structure[left] != pred_left or true_structure[right] != pred_right) \
+            and (true_structure[left] != pred_right or true_structure[right] != pred_left):
+            return False
+        if true_structure[binary] != structure[binary]:
+            return False
+        if true_structure[activation] != structure[activation]:
+            return False
+        return True
+
     def tree_structure_search(self, x, h_prev):
         """
         This is the "fake" forward process.
@@ -140,6 +171,7 @@ class RRNNforGRUCell(nn.Module):
 
         for r in range(self.N):
             candidate = [x, h_prev, torch.zeros(1, self.hidden_size, device=device)] + [comp.vector for comp in components_list]
+            candidate_names = ['x', 'h', '0'] + [comp.name for comp in components_list]
             V_r = []    # same in algo 1 of doc, containing all possible vectors for next node
             V_structure = []    # contains the structure of each vector in V_r
             self.V_r = V_r
@@ -177,11 +209,11 @@ class RRNNforGRUCell(nn.Module):
                                 else:   # elif binary_func == 'mul':
                                     res = torch.mm(s_i, L) * torch.mm(s_j, R) + b
 
-                                # if k == 0:
-                                #     print(res.max().item())
-
                                 # Apply the activation function
-                                if k != 0 and res.abs().max() >= 1:    # if the maximum entry of the vector is larger than 1, we could not use 1-x
+                                # If the previous weights were the identity
+                                # matrix (k == 3), then we're clear to use
+                                # non-saturating activation functions.
+                                if k != 3 and res.abs().max() >= 1:    # if the maximum entry of the vector is larger than 1, we could not use 1-x
                                                             # or x as the unary function, thus we can keep the entries within [-1, 1]
                                     V_r.append(self.multiplier*torch.sigmoid(res))
                                     V_structure.append([i, j, k, binary_func, 'sigmoid'])
@@ -198,6 +230,30 @@ class RRNNforGRUCell(nn.Module):
                                     V_structure.append([i, j, k, binary_func, 'identity'])
                                     V_r.append(self.multiplier*torch.relu(res))
                                     V_structure.append([i, j, k, binary_func, 'relu'])
+
+            # Prune the V_r to only include GRU vectors (should be 4 max)
+            surviving_vectors = []
+            surviving_structures = []
+            for index, structure in enumerate(V_structure):
+                # print(structure)
+                if self.vector_is_in_gru(V_structure[index], r, candidate_names):
+                    surviving_vectors.append(V_r[index])
+                    surviving_structures.append(structure)
+            # if len(surviving_vectors) != 4:
+            #     import pdb; pdb.set_trace()
+            # if r == 3:
+            #     true_structure = [1, 4, 2, 'mul', 'identity']
+            #     print(self.vector_is_in_gru(true_structure, r, candidate_names))
+            #     # for structure in V_structure:
+            #     #     if structure == true_structure:
+            #     #         print('yes')
+            #     from pprint import pprint
+            #     pprint(V_structure)
+            #     import pdb; pdb.set_trace()
+
+
+            V_r = surviving_vectors
+            V_structure = surviving_structures
 
             scores_list = [self.scoring(v).item() for v in V_r] # calculate the scores for each vector
             max_index = np.argmax(scores_list)  # find the index of the vector with highest score
@@ -217,15 +273,21 @@ class RRNNforGRUCell(nn.Module):
             #     print('Max probability from softmax: ', end='')
             #     print(torch.max(probabilities).item())
 
-            max_vector = torch.zeros(V_r[0].size())
-            for index, v in enumerate(V_r):
-                max_vector += v * probabilities[index]
+            if len(V_r) == 1:
+                max_vector = V_r[0]
+                # TODO: Deal with the margin when len(V_R) == 1
+                second_vector = torch.zeros(max_vector.size())
+                second_vectors.append(second_vector)
+            else:
+                max_vector = torch.zeros(V_r[0].size())
+                for index, v in enumerate(V_r):
+                    max_vector += v * probabilities[index]
 
-            # Also grab the 2nd highest scoring vector and structure to be used
-            # in the calculation of loss2
-            second_index = np.where(np.argsort(scores_list) == 1)[0][0]
-            second_vector = V_r[second_index]
-            second_vectors.append(second_vector)
+                # Also grab the 2nd highest scoring vector and structure to be used
+                # in the calculation of loss2
+                second_index = np.where(np.argsort(scores_list) == 1)[0][0]
+                second_vector = V_r[second_index]
+                second_vectors.append(second_vector)
 
             # merge components
             i = max_structure[0]

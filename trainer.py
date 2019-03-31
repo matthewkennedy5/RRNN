@@ -414,7 +414,7 @@ if __name__ == '__main__':
         'nb_train': 5000,    # Only meaningful if it's less than the training set size
         'nb_val': 0,
         'validate_every': np.Inf,  # How often to evaluate the validation set (iterations)
-        'epochs': 10,
+        'epochs': 1,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
@@ -422,7 +422,7 @@ if __name__ == '__main__':
         'verbose': True,
         'epochs_per_checkpoint': 1,
         'optimizer': 'adam',
-        'debug': True,  # Turns multiprocessing off so pdb works
+        'debug': False,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
         'max_grad': None,  # Max norm of gradients. Set to None for no clipping
