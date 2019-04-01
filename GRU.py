@@ -8,6 +8,7 @@ Created on Thu Aug  9 01:42:03 2018
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+from torch.distributions import uniform
 import numpy as np
 import time
 
@@ -80,9 +81,21 @@ class RRNNforGRUCell(nn.Module):
         self.m = 1  # Num of output vectors
         self.N = 9  # Num of generated nodes in one cell
         self.l = 4  # Num of parameter matrices (L_i, R_i, b_i)
-        self.L_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.randn(hidden_size, hidden_size)) for _ in range(self.l)])
-        self.R_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.randn(hidden_size, hidden_size)) for _ in range(self.l)])
-        self.b_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.randn(1, hidden_size)) for _ in range(self.l)])
+
+        # Initalize L R weights from the uniform distribution
+        weight_distribution = uniform.Uniform(-1/np.sqrt(hidden_size), 1/np.sqrt(hidden_size))
+        Ls = []
+        Rs = []
+        for i in range(self.l):
+            L = nn.Parameter(self.multiplier * weight_distribution.sample([hidden_size, hidden_size]))
+            R = nn.Parameter(self.multiplier * weight_distribution.sample([hidden_size, hidden_size]))
+            Ls.append(L)
+            Rs.append(R)
+
+        self.L_list = nn.ParameterList(Ls)
+        self.R_list = nn.ParameterList(Rs)
+        # The bias terms are initialized as zeros.
+        self.b_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.zeros(1, hidden_size)) for _ in range(self.l)])
 
         #################################################
         # Set L0, R0, b0 to the identity transformation #
