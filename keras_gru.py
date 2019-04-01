@@ -57,6 +57,25 @@ def run(params):
     model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
     history = model.fit(X_train, y_train, batch_size=params['batch size'], epochs=params['epochs'],
                         validation_data=(X_val, y_val))
+
+    KERNEL, R_KERNEL, R_BIAS, OUTPUT_KERNEL, OUTPUT_BIAS = range(5)
+    parameters = {
+        'W_z': model.get_weights()[KERNEL][:, :100],
+        'W_r': model.get_weights()[KERNEL][:, 100:200],
+        'W_h': model.get_weights()[KERNEL][:, 200:],
+        'U_z': model.get_weights()[R_KERNEL][:, :100],
+        'U_r': model.get_weights()[R_KERNEL][:, 100:200],
+        'U_h': model.get_weights()[R_KERNEL][:, 200:],
+        'b_z': model.get_weights()[R_BIAS][:100],
+        'b_r': model.get_weights()[R_BIAS][100:200],
+        'b_h': model.get_weights()[R_BIAS][200:]
+    }
+
+    for name, param in sorted(parameters.items()):
+        print(name)
+        print('\tFrobenis norm:', np.linalg.norm(param))
+        print('\t2-norm:', np.linalg.norm(param, ord=2))
+
     return history
 
 
@@ -127,7 +146,7 @@ def plot_bpc(history):
 if __name__=='__main__':
 
     params = {'batch size': 10,
-              'epochs': 40,
+              'epochs': 25,
               'learning rate': 0.0005193665291051191,
               'reg': 7.017320195906407e-07}
 
