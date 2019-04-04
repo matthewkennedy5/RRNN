@@ -204,11 +204,6 @@ class RRNNTrainer:
         #     else:
         #         print(name)
 
-        # Clip gradients elementwise.
-        # max_grad = self.params['max_grad']
-        # if max_grad is not None:
-        #     for p in self.model.parameters():
-        #         p.grad.data.clamp_(-max_grad, max_grad)
         if self.params['max_grad'] is not None:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.params['max_grad'])
 
@@ -350,10 +345,10 @@ class RRNNTrainer:
         structure_file.close()
 
         accuracy = 0
-        for i in range(len(y)):
+        for i in range(y.shape[1]):
             if torch.argmax(y_pred[i]).item() == torch.argmax(y[0, i, :]).item():
                 accuracy += 1
-        accuracy /= len(y)
+        accuracy /= y.shape[1]
 
         return losses, accuracy
 
@@ -411,21 +406,21 @@ if __name__ == '__main__':
         'learning_rate': 1e-4,
         'multiplier': 1,
         'lambdas': (1, 0, 0, 0),
-        'nb_train': 5000,    # Only meaningful if it's less than the training set size
+        'nb_train': 5000,   # Only meaningful if it's less than the training set size
         'nb_val': 0,
-        'validate_every': np.Inf,  # How often to evaluate the validation set (iterations)
+        'validate_every': 1000,  # How often to evaluate the validation set (iterations)
         'epochs': 10,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
-        'batch_size': 1,
+        'batch_size': 2,
         'verbose': True,
         'epochs_per_checkpoint': 1,
         'optimizer': 'adam',
         'debug': True,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
-        'max_grad': None,  # Max norm of gradients. Set to None for no clipping
+        'max_grad': 1,  # Max norm of gradients. Set to None for no clipping
         'initial_train_mode': 'weights',
         'alternate_every': 1,    # Switch training mode after this many epochs
         'warm_start': False,
