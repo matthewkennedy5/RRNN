@@ -226,9 +226,6 @@ class RRNNforGRUCell(nn.Module):
                 gumbel = torch.tensor(gumbel).to(torch.float32)
                 scores += gumbel
             probabilities = torch.nn.Softmax(dim=0)(scores / TEMPERATURE)
-            # if np.random.random() < 0.05:
-            #     print('Max probability from softmax: ', end='')
-            #     print(torch.max(probabilities).item())
 
             max_vector = torch.zeros(V_r[0].size())
             for index, v in enumerate(V_r):
@@ -311,6 +308,11 @@ class RRNNforGRUCell(nn.Module):
         h_next = G_forward[-1]
 
         second_scores_list = [self.scoring(v) for v in second_vectors]
+
+        self.L_list[0].requires_grad = False
+        self.R_list[0].requires_grad = False
+        self.b_list[0].requires_grad = False
+
         return (h_next, G_forward, G_structure, components_list_forward, G_node,
                 scores_list, second_scores_list)
 
