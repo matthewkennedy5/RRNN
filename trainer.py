@@ -225,30 +225,30 @@ class RRNNTrainer:
         if self.params['verbose']:
             print('.', end='', flush=True)
 
-    # TODO: Multiprocess this
-    def validate(self, verbose=True, n_processes=1):
+    # TODO: Remove verbose and just always print stuff.
+    def validate(self, verbose=True):
         """Runs inference over the validation set periodically during training.
 
         Prints the validation loss and accuracy to their respective files.
         """
-        if verbose:
-            print('[INFO] Evaluating the validation set...')
+        print('[INFO] Beginning validation.')
         with torch.no_grad():
             n_val = len(self.X_val)
-            val_loss = np.zeros(4)
-            val_acc = 0
-
-            for i in tqdm(range(n_val)):
+            pool = mp.Pool(self.params['n_processes'])
+            inputs = []
+            for i in range(n_val):
                 x = self.X_val[i, :, :].unsqueeze(0)
                 y = self.y_val[i, :, :].unsqueeze(0)
-                loss, accuracy = self.train_step(x, y)
-                val_loss += loss
-                val_acc += accuracy
-
-            val_loss /= n_val
-            val_acc /= n_val
+                inputs.append((x, y))
+            results = pool.starmap(self.train_step, inputs)
+            val_losses, val_accuracies = zip(*results)
+            val_losses = torch.tensor(val_losses)
+            val_accuracies = torch.tensor(val_accuracies)
+            val_loss = torch.mean(val_losses, dim=0)
+            val_acc = torch.mean(val_accuracies)
             val_loss = tuple(val_loss)
 
+        print('[INFO] Validation complete.')
         with open(VAL_LOSS_FILE, 'a') as f:
             f.write('%d %f %f %f %f\n' % ((self.iter_count.item(),) + val_loss))
         f.close()
@@ -273,7 +273,7 @@ class RRNNTrainer:
                 loss2 - SVM-like score margin loss
                 loss3 - L2 regularization loss
                 loss4 - Tree Distance Metric loss
-            y_pred - Predicted output character for this iteration
+            accuracy - Fraction of y_pred that is correct.
         """
         # forward pass and compute loss - out contains the logits for each possible char
         y_pred, h_list, pred_tree_list, scores, second_scores, structure = self.model(X)
@@ -405,19 +405,19 @@ if __name__ == '__main__':
     params = {
         'learning_rate': 1e-4,
         'multiplier': 1,
-        'lambdas': (1, 0, 0, 0),
+        'lambdas': (1, 1, 1, 1),
         'nb_train': 5000,   # Only meaningful if it's less than the training set size
-        'nb_val': 0,
-        'validate_every': 1000,  # How often to evaluate the validation set (iterations)
+        'nb_val': 100,
+        'validate_every': 10,  # How often to evaluate the validation set (iterations)
         'epochs': 10,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
-        'batch_size': 2,
+        'batch_size': 1,
         'verbose': True,
         'epochs_per_checkpoint': 1,
         'optimizer': 'adam',
-        'debug': True,  # Turns multiprocessing off so pdb works
+        'debug': False,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
         'max_grad': 1,  # Max norm of gradients. Set to None for no clipping
