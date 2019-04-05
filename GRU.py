@@ -371,9 +371,9 @@ class RRNNforGRUCell(nn.Module):
 
         second_scores_list = [self.scoring(v) for v in second_vectors]
 
-        self.L_list[0].requires_grad = False
-        self.R_list[0].requires_grad = False
-        self.b_list[0].requires_grad = False
+        self.L_list[3].requires_grad = False
+        self.R_list[3].requires_grad = False
+        self.b_list[3].requires_grad = False
 
         return (h_next, G_forward, G_structure, components_list_forward, G_node,
                 scores_list, second_scores_list)
