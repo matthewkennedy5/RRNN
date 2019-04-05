@@ -245,7 +245,7 @@ class RRNNTrainer:
             val_losses = torch.tensor(val_losses)
             val_accuracies = torch.tensor(val_accuracies)
             val_loss = torch.mean(val_losses, dim=0)
-            val_acc = torch.mean(val_accuracies)
+            val_acc = torch.mean(val_accuracies).item()
             val_loss = tuple(val_loss)
 
         print('[INFO] Validation complete.')
@@ -405,15 +405,16 @@ if __name__ == '__main__':
     params = {
         'learning_rate': 1e-4,
         'multiplier': 1,
-        'lambdas': (1, 1, 1, 1),
+        'lambdas': (1, 0, 0, 0),
         'nb_train': 5000,   # Only meaningful if it's less than the training set size
-        'nb_val': 100,
-        'validate_every': 10,  # How often to evaluate the validation set (iterations)
-        'epochs': 10,
+        'nb_val': 500,
+        # TODO: Make this epochs
+        'validate_every': 1000,  # How often to evaluate the validation set (iterations)
+        'epochs': 100,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 32,     # Set to None for no hidden layer
-        'batch_size': 1,
+        'batch_size': 16,
         'verbose': True,
         'epochs_per_checkpoint': 1,
         'optimizer': 'adam',
