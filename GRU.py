@@ -94,10 +94,8 @@ class RRNNforGRUCell(nn.Module):
 
         self.L_list = nn.ParameterList(Ls)
         self.R_list = nn.ParameterList(Rs)
-        # self.L_list = nn.ParameterList([nn.Parameter(self.multiplier * weight_distribution.sample((hidden_size, hidden_size))) for _ in range(self.l)]
-        # self.R_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.randn(hidden_size, hidden_size)) for _ in range(self.l)])
         # The bias terms are initialized as zeros.
-        self.b_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.randn(1, hidden_size)) for _ in range(self.l)])
+        self.b_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.zeros(1, hidden_size)) for _ in range(self.l)])
 
         #################################################
         # Set L3, R3, b3 to the identity transformation #
@@ -284,9 +282,6 @@ class RRNNforGRUCell(nn.Module):
                 gumbel = torch.tensor(gumbel).to(torch.float32)
                 scores += gumbel
             probabilities = torch.nn.Softmax(dim=0)(scores / TEMPERATURE)
-            # if np.random.random() < 0.05:
-            #     print('Max probability from softmax: ', end='')
-            #     print(torch.max(probabilities).item())
 
             if len(V_r) == 1:
                 max_vector = V_r[0]
@@ -375,6 +370,11 @@ class RRNNforGRUCell(nn.Module):
         h_next = G_forward[-1]
 
         second_scores_list = [self.scoring(v) for v in second_vectors]
+
+        self.L_list[0].requires_grad = False
+        self.R_list[0].requires_grad = False
+        self.b_list[0].requires_grad = False
+
         return (h_next, G_forward, G_structure, components_list_forward, G_node,
                 scores_list, second_scores_list)
 

@@ -160,7 +160,7 @@ def tree_distance_metric(tree1, tree2):
     return (mat1-mat2).norm() ** 2
 
 def tree_distance_metric_list(pred_tree, target_tree, order=True, samples=10, device=torch.device('cpu')):
-    # 不考虑target tree的不同order
+    # if we don't consider the isomorphisms
     if order == False:
         for i in range(len(pred_tree)):
             tmp_list = []
@@ -168,16 +168,16 @@ def tree_distance_metric_list(pred_tree, target_tree, order=True, samples=10, de
                 tmp = tree_distance_metric(pred_tree[i], target_tree[j])
                 tmp_list.append(tmp)
         return torch.tensor(min(tmp_list), device=device)
-    # 考虑
+    # if we consider the isomorphsims
     if order == True:
-        # 随机选出 10 种构型
+        # randomly select 10 iso
         res_list = []
         # indicator_string_list = ['0'*len(target_tree)] + random.sample(["".join(seq) for seq in itertools.product("01", repeat=len(target_tree))], samples-1)
         indicator_string_list = ['000000000']   # Fixed target tree
         for indicator_string in indicator_string_list:
             res = 0
             new_target_tree = target_tree.copy()
-            for i in range(len(indicator_string)):  # 交换左右子树
+            for i in range(len(indicator_string)):
                 if indicator_string[i] == '1':
                     node = new_target_tree[i]
                     # Swap the left and right child
