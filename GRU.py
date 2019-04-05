@@ -252,18 +252,6 @@ class RRNNforGRUCell(nn.Module):
                 if self.vector_is_in_gru(V_structure[index], r, candidate_names):
                     surviving_vectors.append(V_r[index])
                     surviving_structures.append(structure)
-            # if len(surviving_vectors) != 4:
-            #     import pdb; pdb.set_trace()
-            # if r == 3:
-            #     true_structure = [1, 4, 2, 'mul', 'identity']
-            #     print(self.vector_is_in_gru(true_structure, r, candidate_names))
-            #     # for structure in V_structure:
-            #     #     if structure == true_structure:
-            #     #         print('yes')
-            #     from pprint import pprint
-            #     pprint(V_structure)
-            #     import pdb; pdb.set_trace()
-
 
             V_r = surviving_vectors
             V_structure = surviving_structures
