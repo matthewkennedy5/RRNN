@@ -1,6 +1,7 @@
 import pdb
 import trainer
 import structure_utils
+import tree_methods
 
 not_gru = [['x', 'h', 0, 'mul', 'tanh', 'G0'],
            ['h', 'G0', 2, 'add', 'tanh', 'G1'],
@@ -71,15 +72,78 @@ def traverse(tree):
     else:
         print()
 
-assert(not structure_utils.structures_are_equal(not_gru, gru1))
-assert(structure_utils.structures_are_equal(gru1, gru2))
-assert(structure_utils.structures_are_equal(gru2, gru1))
-# traverse(structure_utils.structure2tree(gru1))
-# traverse(structure_utils.structure2tree(gru3))
-assert(structure_utils.structures_are_equal(gru1, gru3))
-assert(structure_utils.structures_are_equal(gru3, gru1))
-assert(structure_utils.structures_are_equal(gru3, gru2))
-assert(structure_utils.structures_are_equal(gru2, gru3))
-assert(structure_utils.structures_are_equal(gru4, gru1))
-assert(structure_utils.structures_are_equal(gru2, gru4))
-assert(not structure_utils.structures_are_equal(gru2, not_gru2))
+# Tests for structures_are_equal
+# assert(not structure_utils.structures_are_equal(not_gru, gru1))
+# assert(structure_utils.structures_are_equal(gru1, gru2))
+# assert(structure_utils.structures_are_equal(gru2, gru1))
+# # traverse(structure_utils.structure2tree(gru1))
+# # traverse(structure_utils.structure2tree(gru3))
+# assert(structure_utils.structures_are_equal(gru1, gru3))
+# assert(structure_utils.structures_are_equal(gru3, gru1))
+# assert(structure_utils.structures_are_equal(gru3, gru2))
+# assert(structure_utils.structures_are_equal(gru2, gru3))
+# assert(structure_utils.structures_are_equal(gru4, gru1))
+# assert(structure_utils.structures_are_equal(gru2, gru4))
+# assert(not structure_utils.structures_are_equal(gru2, not_gru2))
+
+
+################### Tests for label (tree_methods) ########################
+
+def print_tree(tree):
+    try:
+        print(tree.number)
+    except AttributeError:
+        print('Leaf')
+    if tree.leftchild is not None:
+        print_tree(tree.leftchild)
+    if tree.rightchild is not None:
+        print_tree(tree.rightchild)
+
+# Tree 1
+vector = 0
+node1 = tree_methods.Node(vector)
+node2 = tree_methods.Node(vector)
+leaf1 = tree_methods.Node(vector)
+leaf2 = tree_methods.Node(vector)
+
+node1.leftchild = leaf1
+node1.rightchild = node2
+node2.leftchild = leaf2
+
+result = tree_methods.label(node1)
+print_tree(result)
+
+print()
+print()
+
+# Tree 2
+node1 = tree_methods.Node(vector)
+node2 = tree_methods.Node(vector)
+node3 = tree_methods.Node(vector)
+leaf4 = tree_methods.Node(vector)
+leaf5 = tree_methods.Node(vector)
+node1.rightchild = node2
+node2.rightchild = node3
+node3.leftchild = leaf4
+node3.rightchild = leaf5
+tree_methods.label(node1)
+print_tree(node1)
+print('\n')
+
+# Tree 3
+node1 = tree_methods.Node(vector)
+node2 = tree_methods.Node(vector)
+node3 = tree_methods.Node(vector)
+leaf4 = tree_methods.Node(vector)
+leaf5 = tree_methods.Node(vector)
+leaf6 = tree_methods.Node(vector)
+leaf7 = tree_methods.Node(vector)
+node1.leftchild = node2
+node1.rightchild = node3
+node2.leftchild = leaf4
+node2.rightchild = leaf5
+node3.leftchild = leaf6
+node3.rightchild = leaf7
+tree_methods.label(node1)
+print_tree(node1)
+
