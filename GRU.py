@@ -11,6 +11,7 @@ import torch.nn as nn
 from torch.distributions import uniform
 import numpy as np
 import time
+import pdb
 
 from tree_methods import Node
 import tree_methods
@@ -212,15 +213,15 @@ class RRNNforGRUCell(nn.Module):
                                     V_r.append(self.multiplier*torch.relu(res))
                                     V_structure.append([i, j, k, binary_func, 'relu'])
 
-            scores_list = [self.scoring(v).item() for v in V_r] # calculate the scores for each vector
-            max_index = np.argmax(scores_list)  # find the index of the vector with highest score
+            # scores_list = [self.scoring(v).item() for v in V_r] # calculate the scores for each vector
             # max_vector = V_r[max_index]
-            max_structure = V_structure[max_index]
 
             TEMPERATURE = 1
             GUMBEL = False
             candidate_vectors = torch.stack(V_r)
             scores = self.scoring(candidate_vectors).squeeze()
+            max_index = torch.argmax(scores)  # find the index of the vector with highest score
+            max_structure = V_structure[max_index]
             if GUMBEL:
                 gumbel = -np.log(-np.log(np.random.uniform(0, 1, size=scores.shape)))
                 gumbel = torch.tensor(gumbel).to(torch.float32)
@@ -233,7 +234,8 @@ class RRNNforGRUCell(nn.Module):
 
             # Also grab the 2nd highest scoring vector and structure to be used
             # in the calculation of loss2
-            second_index = np.where(np.argsort(scores_list) == 1)[0][0]
+            # second_index = torch.where(torch.argsort(scores) == 1)[0][0]
+            second_index = 0    # TODO: Make this work for loss2 != 0
             second_vector = V_r[second_index]
             second_vectors.append(second_vector)
 
@@ -270,11 +272,11 @@ class RRNNforGRUCell(nn.Module):
                 G.append(max_vector)
                 G_structure.append([left_node.name, right_node.name] + max_structure[2:] + ['G%d'%r])
 
-        return G, G_structure, second_vectors, components_list
+        return G, G_structure, second_vectors, components_list, scores
 
     def forward(self, x, h_prev):
         # G contains the vector values for each node
-        G, G_structure, second_vectors, components_list = self.tree_structure_search(x, h_prev)
+        G, G_structure, second_vectors, components_list, scores = self.tree_structure_search(x, h_prev)
         G_node = [] # containing the Node class instance
         Gprime_node = []
 
@@ -304,17 +306,18 @@ class RRNNforGRUCell(nn.Module):
         # G_forward = [node.vector for node in G_node]
         G_forward = [vector for vector in G]
         components_list_forward = None
-        scores_list = [self.scoring(g) for g in G_forward]
+        # scores_list = [self.scoring(g) for g in G_forward]
         h_next = G_forward[-1]
 
-        second_scores_list = [self.scoring(v) for v in second_vectors]
+        # second_scores_list = [self.scoring(v) for v in second_vectors]
+        second_scores_list = torch.zeros(scores.shape) # TODO: Implement
 
         self.L_list[0].requires_grad = False
         self.R_list[0].requires_grad = False
         self.b_list[0].requires_grad = False
 
         return (h_next, G_forward, G_structure, components_list_forward, G_node,
-                scores_list, second_scores_list)
+                scores, second_scores_list)
 
 
 class RRNNforGRU(nn.Module):
@@ -346,6 +349,8 @@ class RRNNforGRU(nn.Module):
             structures.append(G_structure)
             pred_tree_list.append(G_node)
             scores.append(scores_list)
+
+        # print('h_list:', [torch.round(h.norm()).item() for h in h_list])
 
         return (pred_chars, h_list, pred_tree_list, scores_list,
                second_scores_list, G_structure)

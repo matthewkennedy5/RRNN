@@ -4,6 +4,7 @@ import time
 import datetime
 import random
 import torch
+from torch import nn
 import torch.multiprocessing as mp
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
@@ -216,16 +217,14 @@ class RRNNTrainer:
         with open(TRAIN_LOSS_FILE, 'a') as f:
             f.write('%f %f %f %f\n' % train_loss)
         f.close()
-        print(loss_fn.item())
+        print(loss_fn.item(), flush=True)
 
         with open(TRAIN_ACC_FILE, 'a') as f:
             f.write('%f\n' % train_acc)
         f.close()
 
-        if self.params['verbose']:
-            print('.', end='', flush=True)
-
     # TODO: Remove verbose and just always print stuff.
+    # TODO: Turn off multiprocessing when in debug mode.
     def validate(self, verbose=True):
         """Runs inference over the validation set periodically during training.
 
@@ -364,8 +363,38 @@ def run(params):
 
     start = time.time()
     gru_model = torch.load('../gru_parameters.pkl')
+
+    # Extract GRU pre-trained weights
+    W_ir, W_iz, W_in = gru_model.weight_ih_l0.chunk(3)
+    W_hr, W_hz, W_hn = gru_model.weight_hh_l0.chunk(3)
+    b_ir, b_iz, b_in = gru_model.bias_ih_l0.chunk(3)
+    b_hr, b_hz, b_hn = gru_model.bias_hh_l0.chunk(3)
+
+    L1 = W_ir
+    R1 = W_hr
+    b1 = b_ir + b_hr
+    L2 = W_iz
+    R2 = W_hz
+    b2 = b_iz + b_hz
+    L3 = W_in
+    R3 = W_hn
+    b3 = b_in #+ r*b_hn
+
     model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['multiplier'],
                        params['scoring_hidden_size'])
+
+    # Warm-start with pretrained GRU weights
+    if params['pretrained_weights']:
+        model.cell.L_list[1] = nn.Parameter(L1)
+        model.cell.L_list[2] = nn.Parameter(L2)
+        model.cell.L_list[3] = nn.Parameter(L3)
+        model.cell.R_list[1] = nn.Parameter(R1)
+        model.cell.R_list[2] = nn.Parameter(R2)
+        model.cell.R_list[3] = nn.Parameter(R3)
+        model.cell.b_list[1] = nn.Parameter(b1)
+        model.cell.b_list[2] = nn.Parameter(b2)
+        model.cell.b_list[3] = nn.Parameter(b3)
+
     if params['warm_start']:
         weights = params['weights_file']
         print('[INFO] Warm starting from ' + weights + '.')
@@ -405,14 +434,14 @@ if __name__ == '__main__':
     params = {
         'learning_rate': 1e-4,
         'multiplier': 1,
-        'lambdas': (1, 1, 1, 1),
-        'nb_train': 5000,   # Only meaningful if it's less than the training set size
-        'nb_val': 100,
-        'validate_every': 10,  # How often to evaluate the validation set (iterations)
-        'epochs': 10,
+        'lambdas': (1, 0, 0, 0),
+        'nb_train': 10000,   # Only meaningful if it's less than the training set size
+        'nb_val': 0,
+        'validate_every': 1000,  # How often to evaluate the validation set (iterations)
+        'epochs': 100,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
-        'scoring_hidden_size': 32,     # Set to None for no hidden layer
+        'scoring_hidden_size': 64,     # Set to None for no hidden layer
         'batch_size': 1,
         'verbose': True,
         'epochs_per_checkpoint': 1,
@@ -424,7 +453,8 @@ if __name__ == '__main__':
         'initial_train_mode': 'weights',
         'alternate_every': 1,    # Switch training mode after this many epochs
         'warm_start': False,
-        'weights_file': 'epoch_0.pt'
+        'weights_file': 'epoch_0.pt',
+        'pretrained_weights': True  # Whether to train from GRU weights
     }
     if len(sys.argv) != 2:
         raise Exception('Usage: python trainer.py <output_dir>')
