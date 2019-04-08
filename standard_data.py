@@ -9,7 +9,7 @@ from dataloader import element_dict
 
 dirname = os.path.dirname(os.path.realpath(__file__))
 CORPUS_FILENAME = os.path.join(dirname, 'enwik8_clean.txt')
-SAVE_FILE = os.path.join(dirname, 'data.pkl')
+SAVE_FILE = os.path.join(dirname, '10k_data.pkl')
 CHUNK_LENGTH = 20
 EMBEDDINGS = 'gensim'
 N_TRAIN = 5000
