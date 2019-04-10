@@ -23,6 +23,8 @@ device = torch.device('cpu')
 
 timer = time.time()
 
+IDENTITY = 0
+
 def retrieve_node(string, x, h_prev, G_node):
     '''
         return a Node instance with given vector
@@ -99,14 +101,14 @@ class RRNNforGRUCell(nn.Module):
         self.b_list = nn.ParameterList([nn.Parameter(self.multiplier * torch.zeros(1, hidden_size)) for _ in range(self.l)])
 
         #################################################
-        # Set L0, R0, b0 to the identity transformation #
-        self.L_list[0] = nn.Parameter(torch.eye(hidden_size))
-        self.R_list[0] = nn.Parameter(torch.eye(hidden_size))
-        self.b_list[0] = nn.Parameter(torch.zeros(1, hidden_size))
+        # Set L3, R3, b3 to the identity transformation #
+        self.L_list[IDENTITY] = nn.Parameter(torch.eye(hidden_size))
+        self.R_list[IDENTITY] = nn.Parameter(torch.eye(hidden_size))
+        self.b_list[IDENTITY] = nn.Parameter(torch.zeros(1, hidden_size))
         # Freeze them - they won't train to something else
-        self.L_list[0].requires_grad = False
-        self.R_list[0].requires_grad = False
-        self.b_list[0].requires_grad = False
+        # self.L_list[IDENTITY].requires_grad = False
+        # self.R_list[IDENTITY].requires_grad = False
+        # self.b_list[IDENTITY].requires_grad = False
         #################################################
 
         if scoring_hsize is not None:
@@ -191,11 +193,8 @@ class RRNNforGRUCell(nn.Module):
                                 else:   # elif binary_func == 'mul':
                                     res = torch.mm(s_i, L) * torch.mm(s_j, R) + b
 
-                                # if k == 0:
-                                #     print(res.max().item())
-
                                 # Apply the activation function
-                                if k != 0 and res.abs().max() >= 1:    # if the maximum entry of the vector is larger than 1, we could not use 1-x
+                                if k != IDENTITY and res.abs().max() >= 1:    # if the maximum entry of the vector is larger than 1, we could not use 1-x
                                                             # or x as the unary function, thus we can keep the entries within [-1, 1]
                                     V_r.append(self.multiplier*torch.sigmoid(res))
                                     V_structure.append([i, j, k, binary_func, 'sigmoid'])
@@ -312,9 +311,10 @@ class RRNNforGRUCell(nn.Module):
         # second_scores_list = [self.scoring(v) for v in second_vectors]
         second_scores_list = torch.zeros(scores.shape) # TODO: Implement
 
-        self.L_list[0].requires_grad = False
-        self.R_list[0].requires_grad = False
-        self.b_list[0].requires_grad = False
+        # Freeze L3 R3 b3 (identity transormation)
+        # self.L_list[IDENTITY].requires_grad = False
+        # self.R_list[IDENTITY].requires_grad = False
+        # self.b_list[IDENTITY].requires_grad = False
 
         return (h_next, G_forward, G_structure, components_list_forward, G_node,
                 scores, second_scores_list)
