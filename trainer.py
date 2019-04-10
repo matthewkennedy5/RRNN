@@ -76,13 +76,17 @@ class RRNNTrainer:
         self.freeze_params()
 
     def freeze_params(self):
-        # Freeze the parameters we're not trying to train
+        """Freeze the parameters we're not trying to train.
+
+        Depending on the epoch, it will either freeze L R b and train scoring,
+        or freeze scoring and train the L R b weights. The output layer is never
+        frozen.
+        """
         names = [name for name, _ in self.model.named_parameters()]
         freeze = []
         if self.train_mode == 'scoring':
             for name in names:
-                if ('L_list' in name or 'R_list' in name
-                        or 'b_list' in name or 'output_layer' in name):
+                if ('L_list' in name or 'R_list' in name or 'b_list' in name):
                     freeze.append(name)
         elif self.train_mode =='weights':
             for name in names:
@@ -199,11 +203,11 @@ class RRNNTrainer:
 
         loss_fn.backward()
 
-        # for name, p in self.model.named_parameters():
-        #     if p.grad is not None:
-        #         print(name, p.grad.norm().item())
-        #     else:
-        #         print(name)
+        for name, p in self.model.named_parameters():
+            if p.grad is not None:
+                print(name, p.grad.norm().item())
+            else:
+                print(name)
 
         if self.params['max_grad'] is not None:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.params['max_grad'])
@@ -435,7 +439,7 @@ if __name__ == '__main__':
         'learning_rate': 1e-4,
         'multiplier': 1,
         'lambdas': (1, 0, 0, 0),
-        'nb_train': 10000,   # Only meaningful if it's less than the training set size
+        'nb_train': 1,   # Only meaningful if it's less than the training set size
         'nb_val': 0,
         'validate_every': 1000,  # How often to evaluate the validation set (iterations)
         'epochs': 100,
