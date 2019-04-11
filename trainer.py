@@ -80,8 +80,7 @@ class RRNNTrainer:
         freeze = []
         if self.train_mode == 'scoring':
             for name in names:
-                if ('L_list' in name or 'R_list' in name
-                        or 'b_list' in name or 'output_layer' in name):
+                if ('L_list' in name or 'R_list' in name or 'b_list' in name):
                     freeze.append(name)
         elif self.train_mode =='weights':
             for name in names:
@@ -221,9 +220,6 @@ class RRNNTrainer:
         with open(TRAIN_ACC_FILE, 'a') as f:
             f.write('%f\n' % train_acc)
         f.close()
-
-        if self.params['verbose']:
-            print('.', end='', flush=True)
 
     # TODO: Remove verbose and just always print stuff.
     def validate(self, verbose=True):
@@ -401,12 +397,12 @@ if __name__ == '__main__':
     params = {
         'learning_rate': 1e-4,
         'multiplier': 1,
-        'lambdas': (1, 1, 1, 1),
-        'nb_train': 1,   # Only meaningful if it's less than the training set size
+        'lambdas': (1, 1, 1e-12, 0.003),
+        'nb_train': 10000,   # Only meaningful if it's less than the training set size
         'nb_val': 0,
         # TODO: Make this epochs
         'validate_every': 1000,  # How often to evaluate the validation set (iterations)
-        'epochs': 100,
+        'epochs': 1000,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 64,     # Set to None for no hidden layer
@@ -414,12 +410,12 @@ if __name__ == '__main__':
         'verbose': True,
         'epochs_per_checkpoint': 1,
         'optimizer': 'adam',
-        'debug': True,  # Turns multiprocessing off so pdb works
+        'debug': False,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
         'max_grad': 1,  # Max norm of gradients. Set to None for no clipping
         'initial_train_mode': 'weights',
-        'alternate_every': 1,    # Switch training mode after this many epochs
+        'alternate_every': 5,    # Switch training mode after this many epochs
         'warm_start': False,
         'weights_file': 'epoch_0.pt'
     }
