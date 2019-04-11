@@ -276,7 +276,7 @@ class RRNNTrainer:
             accuracy - Fraction of y_pred that is correct.
         """
         # forward pass and compute loss - out contains the logits for each possible char
-        y_pred, h_list, pred_tree_list, scores, second_scores, structure = self.model(X)
+        y_pred, h_list, pred_tree_list, structures, margins = self.model(X)
 
         # forward pass of traditional GRU
         gru_h_list = self.gru_model(X)[0]
@@ -305,10 +305,9 @@ class RRNNTrainer:
         # the correct vectors.
         loss2 = 0
         if self.lamb2 != 0:
-            margin = self.params['loss2_margin']
-            for s in range(len(scores)):
-                difference = scores[s] - second_scores[s]
-                if difference < margin:
+            desired_margin = self.params['loss2_margin']
+            for m in margins:
+                if m < desired_margin:
                     # Here the subtraction comes from the fact that we want the
                     # loss to be 0 when the difference >= LOSS2_MARGIN,
                     # and equal to 1 when the difference is 0. Therefore,
@@ -316,7 +315,7 @@ class RRNNTrainer:
                     # vectors we have. We divide by LOSS2_MARGIN to scale
                     # the loss term to be between 0 and 1, so it LOSS2_MARGIN
                     # doesn't affect the overall scale of loss2.
-                    value = torch.clamp(margin - difference, min=0) / margin
+                    value = torch.clamp(m, min=0) / desired_margin
                     if value > 0:
                         loss2 += value
 
@@ -335,14 +334,12 @@ class RRNNTrainer:
 
         losses = (self.lamb1*loss1, self.lamb2*loss2, self.lamb3*loss3, self.lamb4*loss4)
 
-        # Record the structure
-        # TODO: Put this in train_batch. We don't want this to happen during validation.
-        structure_file = open('structure.txt', 'a')
-        is_gru = structures_are_equal(structure, GRU_STRUCTURE)
-        if is_gru:
-            print('\nAcheived GRU structure!\n')
-        structure_file.write(str(structure) + '\n')
-        structure_file.close()
+        # # Record the structure
+        # # TODO: Put this in train_batch. We don't want this to happen during validation.
+        # structure_file = open('structure.txt', 'a')
+        # # is_gru = structures_are_equal(structure, GRU_STRUCTURE)
+        # structure_file.write(str(structure) + '\n')
+        # structure_file.close()
 
         accuracy = 0
         for i in range(y.shape[1]):
@@ -364,8 +361,7 @@ def run(params):
 
     start = time.time()
     gru_model = torch.load('../gru_parameters.pkl')
-    model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['multiplier'],
-                       params['scoring_hidden_size'])
+    model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['scoring_hidden_size'])
     if params['warm_start']:
         weights = params['weights_file']
         print('[INFO] Warm starting from ' + weights + '.')
@@ -405,20 +401,20 @@ if __name__ == '__main__':
     params = {
         'learning_rate': 1e-4,
         'multiplier': 1,
-        'lambdas': (1, 0, 0, 0),
-        'nb_train': 5000,   # Only meaningful if it's less than the training set size
-        'nb_val': 500,
+        'lambdas': (1, 1, 1, 1),
+        'nb_train': 1,   # Only meaningful if it's less than the training set size
+        'nb_val': 0,
         # TODO: Make this epochs
         'validate_every': 1000,  # How often to evaluate the validation set (iterations)
         'epochs': 100,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
-        'scoring_hidden_size': 32,     # Set to None for no hidden layer
-        'batch_size': 16,
+        'scoring_hidden_size': 64,     # Set to None for no hidden layer
+        'batch_size': 1,
         'verbose': True,
         'epochs_per_checkpoint': 1,
         'optimizer': 'adam',
-        'debug': False,  # Turns multiprocessing off so pdb works
+        'debug': True,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
         'max_grad': 1,  # Max norm of gradients. Set to None for no clipping
