@@ -72,25 +72,58 @@ def GRUtree_pytorch(x, h, weight_ih_l0, weight_hh_l0, bias_ih_l0, bias_hh_l0):
     for node in node_list:
         node.leftchild.parent = node
         node.rightchild.parent = node
-        
+
     return h_nextNode, node_list
 
-
 def label(tree, l=1):
-    tree.number = l
-    if tree.leftchild is not None:
-        label(tree.leftchild, 2*tree.number)
-    if tree.rightchild is not None:
-        label(tree.rightchild, 2*tree.number+1)
+    """Assign index values to every node in a tree.
+    As per the definition of the tree distance metric in the paper, the leaf
+    nodes are not labelled. Trees are numbered in increasing order with the root
+    at 1:
+                        1
+                       / \
+                      2    3
+                       \   /\
+                        5 6  7
+    Inputs:
+        tree - Node instance containing the root of the tree
+        l - Value to assign the root of the tree (default: 1).
+    Returns:
+        tree - The tree with all of the tree.number fields filled out with the
+            correct indices.
+    """
+    if tree is not None:
+        if tree.leftchild is not None or tree.rightchild is not None:
+            tree.number = l
+            label(tree.leftchild, 2 * l)
+            label(tree.rightchild, 2*l + 1)
     return tree
 
+# def label(tree, l=1):
+#     tree.number = l
+#     if tree.leftchild is not None:
+#         label(tree.leftchild, 2*tree.number)
+#     if tree.rightchild is not None:
+#         label(tree.rightchild, 2*tree.number+1)
+#     return tree
+
 def tree_matrixize(tree, mat):
-    mat[tree.number-1, :] = tree.vector
+    if hasattr(tree, 'number'):
+        mat[tree.number-1, :] = tree.vector
     if tree.leftchild is not None:
         mat = tree_matrixize(tree.leftchild, mat)
     if tree.rightchild is not None:
         mat = tree_matrixize(tree.rightchild, mat)
     return mat
+
+
+# def tree_matrixize(tree, mat):
+#     mat[tree.number-1, :] = tree.vector
+#     if tree.leftchild is not None:
+#         mat = tree_matrixize(tree.leftchild, mat)
+#     if tree.rightchild is not None:
+#         mat = tree_matrixize(tree.rightchild, mat)
+#     return mat
 
 def tree_distance_metric(tree1, tree2):
     tree1 = label(tree1)
