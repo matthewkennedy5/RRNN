@@ -55,7 +55,6 @@ class RRNNforGRUCell(nn.Module):
         self.L_list[3] = nn.Parameter(torch.eye(hidden_size))
         self.R_list[3] = nn.Parameter(torch.eye(hidden_size))
         self.b_list[3] = nn.Parameter(torch.zeros(1, hidden_size))
-        # Freeze them - they won't train to something else
         self.L_list[3].requires_grad = True
         self.R_list[3].requires_grad = True
         self.b_list[3].requires_grad = True
