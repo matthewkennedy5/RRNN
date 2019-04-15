@@ -4,9 +4,11 @@ import time
 import datetime
 import random
 import torch
+from torch import nn
 import torch.multiprocessing as mp
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
+import itertools
 
 # import tree_methods_parallel as tree_methods
 import tree_methods
@@ -14,7 +16,7 @@ from GRU import RRNNforGRU
 from structure_utils import structures_are_equal, GRU_STRUCTURE
 import pickle
 import pdb
-from tqdm import tqdm
+from tqdm import tqdm, trange
 import standard_data
 
 VOCAB_SIZE = 27
@@ -113,7 +115,8 @@ class RRNNTrainer:
 
             # Checkpoint the model
             if epoch % self.params['epochs_per_checkpoint'] == 0:
-                torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch,))
+                save_name = 'checkpoint_' + str(time.time()) + '.pt'
+                torch.save(self.model.state_dict(), save_name)
 
             X_batches = []
             y_batches = []
@@ -230,20 +233,32 @@ class RRNNTrainer:
         print('[INFO] Beginning validation.')
         with torch.no_grad():
             n_val = len(self.X_val)
-            pool = mp.Pool(self.params['n_processes'])
-            inputs = []
-            for i in range(n_val):
-                x = self.X_val[i, :, :].unsqueeze(0)
-                y = self.y_val[i, :, :].unsqueeze(0)
-                inputs.append((x, y))
-            results = pool.starmap(self.train_step, inputs)
-            val_losses, val_accuracies = zip(*results)
-            val_losses = torch.tensor(val_losses)
-            val_accuracies = torch.tensor(val_accuracies)
-            val_loss = torch.mean(val_losses, dim=0)
-            val_acc = torch.mean(val_accuracies).item()
-            val_loss = tuple(val_loss)
+            if self.params['debug']:
+                val_loss = torch.zeros(4)
+                val_acc = 0
+                for i in trange(n_val):
+                    x = self.X_val[i, :, :].unsqueeze(0)
+                    y = self.y_val[i, :, :].unsqueeze(0)
+                    loss, acc = self.train_step(x, y)
+                    val_loss += torch.tensor(loss)
+                    val_acc += acc
+                val_loss /= n_val
+                val_acc /= n_val
+            else:
+                inputs = []
+                for i in range(n_val):
+                    x = self.X_val[i, :, :].unsqueeze(0)
+                    y = self.y_val[i, :, :].unsqueeze(0)
+                    inputs.append((x, y))
+                with mp.Pool(self.params['n_processes']) as pool:
+                    results = pool.starmap(self.train_step, inputs)
+                    val_losses, val_accuracies = zip(*results)
+                    val_losses = torch.tensor(val_losses)
+                    val_accuracies = torch.tensor(val_accuracies)
+                    val_loss = torch.mean(val_losses, dim=0)
+                    val_acc = torch.mean(val_accuracies).item()
 
+        val_loss = tuple(val_loss)
         print('[INFO] Validation complete.')
         with open(VAL_LOSS_FILE, 'a') as f:
             f.write('%d %f %f %f %f\n' % ((self.iter_count.item(),) + val_loss))
@@ -323,10 +338,8 @@ class RRNNTrainer:
         loss4 = 0
         if self.lamb4 != 0:
             for l in range(len(pred_tree_list)):
-                loss4 += tree_methods.tree_distance_metric_list(pred_tree_list[l],
-                                                                target_tree_list[l],
-                                                                samples=1,
-                                                                device=device)
+                loss4 += tree_methods.tree_distance_dic(pred_tree_list[l],
+                                                        target_tree_list[l])
 
         losses = (self.lamb1*loss1, self.lamb2*loss2, self.lamb3*loss3, self.lamb4*loss4)
 
@@ -362,6 +375,31 @@ def run(params):
         weights = params['weights_file']
         print('[INFO] Warm starting from ' + weights + '.')
         model.load_state_dict(torch.load(weights))
+    # else:
+        # Start from pretrained GRU weights
+        # Extract GRU pre-trained weights
+        # W_ir, W_iz, W_in = gru_model.weight_ih_l0.chunk(3)
+        # W_hr, W_hz, W_hn = gru_model.weight_hh_l0.chunk(3)
+        # b_ir, b_iz, b_in = gru_model.bias_ih_l0.chunk(3)
+        # b_hr, b_hz, b_hn = gru_model.bias_hh_l0.chunk(3)
+        # L1 = W_ir
+        # R1 = W_hr
+        # b1 = b_ir + b_hr
+        # L2 = W_iz
+        # R2 = W_hz
+        # b2 = b_iz + b_hz
+        # L0 = W_in
+        # R0 = W_hn
+        # b0 = b_in #+ r*b_hn
+        # model.cell.L_list[1] = nn.Parameter(L1)
+        # model.cell.L_list[2] = nn.Parameter(L2)
+        # model.cell.L_list[3] = nn.Parameter(L0)
+        # model.cell.R_list[1] = nn.Parameter(R1)
+        # model.cell.R_list[2] = nn.Parameter(R2)
+        # model.cell.R_list[3] = nn.Parameter(R0)
+        # model.cell.b_list[1] = nn.Parameter(b1)
+        # model.cell.b_list[2] = nn.Parameter(b2)
+        # model.cell.b_list[3] = nn.Parameter(b0)
 
     model.share_memory()
     gru_model.share_memory()
@@ -397,12 +435,12 @@ if __name__ == '__main__':
     params = {
         'learning_rate': 1e-4,
         'multiplier': 1,
-        'lambdas': (1, 1, 1e-12, 0.003),
-        'nb_train': 10000,   # Only meaningful if it's less than the training set size
-        'nb_val': 0,
+        'lambdas': (1, 1, 1, 0),
+        'nb_train': 10,   # Only meaningful if it's less than the training set size
+        'nb_val': 10,
         # TODO: Make this epochs
-        'validate_every': 1000,  # How often to evaluate the validation set (iterations)
-        'epochs': 1000,
+        'validate_every': 1,  # How often to evaluate the validation set (iterations)
+        'epochs': 1,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
         'scoring_hidden_size': 64,     # Set to None for no hidden layer
@@ -426,4 +464,9 @@ if __name__ == '__main__':
         os.mkdir(dirname)
     os.chdir(dirname)
 
+    import time
+    t0 = time.time()
     run(params)
+    t1 = time.time()
+    print('[INFO] Total runtime:', t1-t0)
+
