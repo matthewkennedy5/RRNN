@@ -328,7 +328,7 @@ class RRNNTrainer:
         loss3 = 0
         if self.lamb3 != 0:
             for param in self.model.parameters():
-                loss3 += param.norm()
+                loss3 += param.norm()**2
 
         loss4 = 0
         if self.lamb4 != 0:
