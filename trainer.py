@@ -8,6 +8,7 @@ from torch import nn
 import torch.multiprocessing as mp
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
+import time
 
 # import tree_methods_parallel as tree_methods
 import tree_methods
@@ -119,7 +120,8 @@ class RRNNTrainer:
 
             # Checkpoint the model
             if epoch % self.params['epochs_per_checkpoint'] == 0:
-                torch.save(self.model.state_dict(), 'epoch_%d.pt' % (epoch,))
+                save_name = 'checkpoint_' + str(time.time()) + '.pt'
+                torch.save(self.model.state_dict(), save_name)
 
             X_batches = []
             y_batches = []
@@ -203,11 +205,11 @@ class RRNNTrainer:
 
         loss_fn.backward()
 
-        for name, p in self.model.named_parameters():
-            if p.grad is not None:
-                print(name, p.grad.norm().item())
-            else:
-                print(name)
+        # for name, p in self.model.named_parameters():
+        #     if p.grad is not None:
+        #         print(name, p.grad.norm().item())
+        #     else:
+        #         print(name)
 
         if self.params['max_grad'] is not None:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.params['max_grad'])
