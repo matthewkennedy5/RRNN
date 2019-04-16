@@ -337,18 +337,18 @@ class RRNNforGRU(nn.Module):
         h_next = self.init_hidden()
         h_list = []
         pred_tree_list = []
-        scores = []
+        scores_list = []
         structures = []
         pred_chars = []
 
         for t in range(time_steps):
             x_t = inputs[:, t, :].reshape(1, -1)
-            h_next, G_forward, G_structure, components_list_forward, G_node, scores_list, second_scores_list = self.cell(x_t, h_next)
+            h_next, G_forward, G_structure, components_list_forward, G_node, scores, second_scores_list = self.cell(x_t, h_next)
             pred_chars.append(self.output_layer(h_next))
             h_list.append(h_next)
             structures.append(G_structure)
             pred_tree_list.append(G_node)
-            scores.append(scores_list)
+            scores_list.append(scores)
 
         # print('h_list:', [torch.round(h.norm()).item() for h in h_list])
 
