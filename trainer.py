@@ -9,6 +9,7 @@ import torch.multiprocessing as mp
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
 import time
+import json
 
 # import tree_methods_parallel as tree_methods
 import tree_methods
@@ -437,36 +438,16 @@ def run(params):
 
 if __name__ == '__main__':
 
-    params = {
-        'learning_rate': 1e-4,
-        'multiplier': 1,
-        'lambdas': (1, 0, 0, 0),
-        'nb_train': 1,   # Only meaningful if it's less than the training set size
-        'nb_val': 0,
-        'validate_every': 1000,  # How often to evaluate the validation set (iterations)
-        'epochs': 100,
-        'n_processes': mp.cpu_count(),
-        'loss2_margin': 1,
-        'scoring_hidden_size': 64,     # Set to None for no hidden layer
-        'batch_size': 1,
-        'verbose': True,
-        'epochs_per_checkpoint': 1,
-        'optimizer': 'adam',
-        'debug': False,  # Turns multiprocessing off so pdb works
-        'data_file': 'enwik8_clean.txt',
-        'embeddings': 'gensim',
-        'max_grad': 1,  # Max norm of gradients. Set to None for no clipping
-        'initial_train_mode': 'weights',
-        'alternate_every': 1,    # Switch training mode after this many epochs
-        'warm_start': False,
-        'weights_file': 'epoch_0.pt',
-        'pretrained_weights': True  # Whether to train from GRU weights
-    }
-    if len(sys.argv) != 2:
-        raise Exception('Usage: python trainer.py <output_dir>')
+    if len(sys.argv) != 3:
+        raise Exception('Usage: python trainer.py <output_dir> <JSON parameter file>')
     dirname = sys.argv[1]
+    param_file = sys.argv[2]
+    with open(param_file, 'r') as f:
+        params = json.load(f)
+
     if not params['warm_start']:
         os.mkdir(dirname)
     os.chdir(dirname)
 
     run(params)
+
