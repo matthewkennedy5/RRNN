@@ -7,7 +7,7 @@ import torch
 from torch import nn
 import torch.multiprocessing as mp
 import numpy as np
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import DataLoader
 import time
 import json
 
@@ -413,20 +413,15 @@ def run(params):
 
     filename = os.path.join('..', params['data_file'])  # Since we're in the output dir
     print('[INFO] Loading training data into memory.')
-    data = standard_data.load_standard_data()
-    (X_train, y_train), (X_val, y_val), (X_test, y_test) = data
-    nb_train = params['nb_train']
-    nb_val = params['nb_val']
-    if X_train.size()[0] > nb_train:
-        X_train = X_train[:nb_train]
-        y_train = y_train[:nb_train]
-    if X_val.size()[0] > nb_val:
-        X_val = X_val[:nb_val]
-        y_val = y_val[:nb_val]
+    # TODO: Include other datasets
+    train_set = standard_data.EnWik8Clean(subset='train')
+    validation_set = standard_data.EnWik8Clean(subset='val')
+    train_dataloader = DataLoader(train_set, batch_size=params['batch_size'], shuffle=True)
+    val_dataloader = DataLoader(validation_set, batch_size=params['batch_size'], shuffle=True)
     print('[INFO] Beginning training with %d training samples and %d '
-          'validation samples.' % (X_train.size()[0], X_val.size()[0]))
+          'validation samples.' % (len(train_set), len(validation_set)))
 
-    trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, params)
+    trainer = RRNNTrainer(model, gru_model, train_dataloader, val_dataloader, params)
     trainer.train(params['epochs'], n_processes=params['n_processes'])
 
     runtime = time.time() - start
