@@ -5,24 +5,13 @@ Created on Thu Apr 18 15:15:54 2019
 @author: Bruce
 """
 
-
 import torch
-import torch.nn.functional as F
 import torch.nn as nn
 from torch.distributions import uniform
 import numpy as np
 import time
-import pdb
 
 from tree_methods import Node
-import tree_methods
-
-
-device = torch.device('cpu')
-#if torch.cuda.is_available():
-#    device = torch.device('cuda:0')
-
-timer = time.time()
 
 
 class RRNNforGRUCell(nn.Module):
@@ -81,6 +70,7 @@ class RRNNforGRUCell(nn.Module):
         highest = sorted_indices[-1]
         second_highest = sorted_indices[-2]
         return scores[highest] - scores[second_highest]
+
 
     def forward(self, x, h_prev):
         """ Batched version of forward pass
@@ -151,7 +141,7 @@ class RRNNforGRUCell(nn.Module):
         G_structure[:, 8] = torch.argmax(scores, dim=2).squeeze()  
 
         # set up nodes
-        o = torch.zeros(batch_size, 1, self.hidden_size)
+        o = torch.zeros([batch_size, 1, self.hidden_size], device=x.device)
         z_1Node = Node(z_1, name='z_1', structure=G_structure[0], left_child=Node(x, 'x'), right_child=Node(h_prev, 'h'))
         rNode = Node(r, name='r', structure=G_structure[1], left_child=Node(x, 'x'), right_child=Node(h_prev, 'h'))
         z_2Node = Node(z_2, name='z_2', structure=G_structure[2], left_child=Node(x, 'x'), right_child=Node(h_prev, 'h'))
@@ -180,12 +170,12 @@ class RRNNforGRU(nn.Module):
         self.output_layer = nn.Linear(hidden_size, vocab_size)
         self.batch_size = batch_size
 
-    def init_hidden(self):
-        return torch.zeros(self.batch_size, 1, self.hidden_size, requires_grad=True, device=device)
+    def init_hidden(self, device=torch.device('cpu')):
+        return torch.zeros([self.batch_size, 1, self.hidden_size], requires_grad=True, device=device)
 
     def forward(self, inputs):
         time_steps = inputs.shape[1]
-        h_next = self.init_hidden()
+        h_next = self.init_hidden(device = inputs.device)
         h_list = []
         pred_tree_list = []
         margins_list = []
@@ -208,85 +198,25 @@ class RRNNforGRU(nn.Module):
         return pred_chars_batch, h_batch, pred_tree_list, structures_list, margins_batch
     
 if __name__ == '__main__':
-#    timer = time.time()
-#    HIDDEN_SIZE = 100
-#    for i in range(1):
-#        x = torch.randn(16, 1, HIDDEN_SIZE)
-#        h_prev = torch.randn(16, 1, HIDDEN_SIZE)
-#        cell = RRNNforGRUCell(HIDDEN_SIZE)
-#        h_next, G_structure, G_node, margins = cell(x, h_prev)
-#    print(time.time()-timer)
-#    
-#    
-#    # model
-#    timer = time.time()
-#    for i in range(1):
-#        BATCH_SIZE = 16
-#        inputs = torch.randn(BATCH_SIZE, 20, HIDDEN_SIZE)
-#        model = RRNNforGRU(HIDDEN_SIZE, vocab_size=27, batch_size=BATCH_SIZE)
-#        pred_chars_batch, h_batch, pred_tree_list, structures_list, margins_batch = model(inputs)
-#    print(time.time()-timer)
-    
-    
-    # train
-    batch_size = 16
+    timer = time.time()
     HIDDEN_SIZE = 100
+    for i in range(1):
+        x = torch.randn(16, 1, HIDDEN_SIZE)
+        h_prev = torch.randn(16, 1, HIDDEN_SIZE)
+        cell = RRNNforGRUCell(HIDDEN_SIZE)
+        h_next, G_structure, G_node, margins = cell(x, h_prev)
+    print(time.time()-timer)
     
-    # forward pass
-    pred_chars_batch, h_batch, pred_tree_list, structures_list, margins_batch = self.model(X)
-
-    # forward pass of traditional GRU
-    gru_h_list = self.gru_model(X)[0]
-    gru_h_list = torch.cat([torch.zeros(batch_size, 1, HIDDEN_SIZE), gru_h_list], dim=1)
-    target_tree_list = []
-    for t in range(X.shape[1]):
-        gru_x = X[:, t, :].reshape(batch_size, 1, HIDDEN_SIZE)
-        gru_h = gru_h_list[:, t, :].reshape(batch_size, 1, HIDDEN_SIZE)
-        target_tree = tree_methods.GRUtree_pytorch(gru_x, gru_h,
-                                                   self.gru_model.weight_ih_l0,
-                                                   self.gru_model.weight_hh_l0,
-                                                   self.gru_model.bias_ih_l0,
-                                                   self.gru_model.bias_hh_l0)[1]
-        target_tree_list.append(target_tree)
-
-    # calculate loss function
-    loss1 = 0
-    if self.lamb1 != 0:
-        for i, ch in enumerate(y.squeeze()):
-            y_index = torch.argmax(ch).unsqueeze(0)
-            loss1 += self.loss(y_pred[i], y_index)
-        # loss1 = self.loss(out, y.reshape(1,27).float())
-
-    # loss2 is the negative sum of the scores (alpha) of the vector
-    # corresponding to each node. It is an attempt to drive up the scores for
-    # the correct vectors.
-    loss2 = 0
-    if self.lamb2 != 0:
-        desired_margin = self.params['loss2_margin']
-        for m in margins:
-            if m < desired_margin:
-                # Here the subtraction comes from the fact that we want the
-                # loss to be 0 when the difference >= LOSS2_MARGIN,
-                # and equal to 1 when the difference is 0. Therefore,
-                # loss2 will always be between 0 and the number of
-                # vectors we have. We divide by LOSS2_MARGIN to scale
-                # the loss term to be between 0 and 1, so it LOSS2_MARGIN
-                # doesn't affect the overall scale of loss2.
-                value = torch.clamp(m, min=0) / desired_margin
-                if value > 0:
-                    loss2 += value
-
-    loss3 = 0
-    if self.lamb3 != 0:
-        for param in self.model.parameters():
-            loss3 += param.norm()**2
-
-    loss4 = 0
-    if self.lamb4 != 0:
-        for l in range(len(pred_tree_list)):
-            loss4 += tree_methods.tree_distance_dic(pred_tree_list[l],
-                                                    target_tree_list[l])
-
-    losses = (self.lamb1*loss1, self.lamb2*loss2, self.lamb3*loss3, self.lamb4*loss4)
+    
+    # model
+    timer = time.time()
+    for i in range(1):
+        BATCH_SIZE = 16
+        inputs = torch.randn(BATCH_SIZE, 20, HIDDEN_SIZE)
+        model = RRNNforGRU(HIDDEN_SIZE, vocab_size=27, batch_size=BATCH_SIZE)
+        pred_chars_batch, h_batch, pred_tree_list, structures_list, margins_batch = model(inputs)
+    print(time.time()-timer)
+    
+   
     
     
