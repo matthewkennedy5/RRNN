@@ -5,7 +5,6 @@ Created on Thu Oct 11 02:44:59 2018
 @author: Bruce
 """
 
-
 import torch
 import itertools
 import random
@@ -19,15 +18,6 @@ class Node(object):
         self.rightchild = right_child
         self.parent = None
 
-    def __str__(self):
-        s = '''
-            Name: %s
-            structure: %s
-            leftchild: %s
-            rightchild: %s
-            parent: %s
-        '''%(self.name, str(self.structure), self.leftchild.name, self.rightchild.name, str(self.parent.name))
-        return s
 
 def depth(node):
     '''
@@ -42,6 +32,7 @@ def depth(node):
     else:
         return max(depth(node.leftchild), depth(node.rightchild)) + 1
 
+
 # GRU Tree
 def GRUtree_pytorch(x, h, weight_ih_l0, weight_hh_l0, bias_ih_l0, bias_hh_l0):
     W_ir, W_iz, W_in = weight_ih_l0.chunk(3)
@@ -50,10 +41,10 @@ def GRUtree_pytorch(x, h, weight_ih_l0, weight_hh_l0, bias_ih_l0, bias_hh_l0):
     b_hr, b_hz, b_hn = bias_hh_l0.chunk(3)
 
     o = torch.zeros(x.shape)
-    r = torch.sigmoid(torch.mm(x, W_ir) + b_ir + torch.mm(h, W_hr) + b_hr)
-    z = torch.sigmoid(torch.mm(x, W_iz) + b_iz + torch.mm(h, W_hz) + b_hz)
+    r = torch.sigmoid(torch.matmul(x, W_ir) + b_ir + torch.matmul(h, W_hr) + b_hr)
+    z = torch.sigmoid(torch.matmul(x, W_iz) + b_iz + torch.matmul(h, W_hz) + b_hz)
     rh = r*h
-    h_tilde = torch.tanh(torch.mm(x, W_in) + b_in + torch.mm(rh, W_hn) + r*b_hn)
+    h_tilde = torch.tanh(torch.matmul(x, W_in) + b_in + torch.matmul(rh, W_hn) + r*b_hn)
     oneMinusz = 1-z
     zh = z*h
     zh_tilde = oneMinusz*h_tilde
@@ -73,109 +64,50 @@ def GRUtree_pytorch(x, h, weight_ih_l0, weight_hh_l0, bias_ih_l0, bias_hh_l0):
     for node in node_list:
         node.leftchild.parent = node
         node.rightchild.parent = node
-
+        
     return h_nextNode, node_list
 
-def label(tree, l=1):
-    """Assign index values to every node in a tree.
-    As per the definition of the tree distance metric in the paper, the leaf
-    nodes are not labelled. Trees are numbered in increasing order with the root
-    at 1:
-                        1
-                       / \
-                      2    3
-                       \   /\
-                        5 6  7
-    Inputs:
-        tree - Node instance containing the root of the tree
-        l - Value to assign the root of the tree (default: 1).
-    Returns:
-        tree - The tree with all of the tree.number fields filled out with the
-            correct indices.
-    """
-    if tree is not None:
-        if tree.leftchild is not None or tree.rightchild is not None:
-            tree.number = l
-            label(tree.leftchild, 2 * l)
-            label(tree.rightchild, 2*l + 1)
-    return tree
-
-# def label(tree, l=1):
-#     tree.number = l
-#     if tree.leftchild is not None:
-#         label(tree.leftchild, 2*tree.number)
-#     if tree.rightchild is not None:
-#         label(tree.rightchild, 2*tree.number+1)
-#     return tree
-
-def tree_matrixize(tree, mat):
-    if hasattr(tree, 'number'):
-        mat[tree.number-1, :] = tree.vector
-    if tree.leftchild is not None:
-        mat = tree_matrixize(tree.leftchild, mat)
-    if tree.rightchild is not None:
-        mat = tree_matrixize(tree.rightchild, mat)
-    return mat
 
 
-# def tree_matrixize(tree, mat):
-#     mat[tree.number-1, :] = tree.vector
-#     if tree.leftchild is not None:
-#         mat = tree_matrixize(tree.leftchild, mat)
-#     if tree.rightchild is not None:
-#         mat = tree_matrixize(tree.rightchild, mat)
-#     return mat
+def label_dic(tree):
+    l = 1
+    d = {}
+    def recursive(tree, l, d):
+        if tree is not None:
+            if (tree.leftchild is not None) or (tree.rightchild is not None):
+                d[l] = tree.vector
+                d = recursive(tree.leftchild, 2 * l, d)
+                d = recursive(tree.rightchild, 2*l + 1, d)
+        return d
+    return recursive(tree, l, d)
 
-def tree_distance_metric(tree1, tree2):
-    tree1 = label(tree1)
-    tree2 = label(tree2)
-    max_depth = max(depth(tree1), depth(tree2))
-    mat1 = torch.zeros(2**max_depth-1, tree1.vector.shape[1])
-    mat2 = torch.zeros(2**max_depth-1, tree1.vector.shape[1])
-    mat1 = tree_matrixize(tree1, mat1)
-    mat2 = tree_matrixize(tree2, mat2)
-    return (mat1-mat2).norm() ** 2
+    
+def tree_distance_dic(tree1, tree2):
+    d1 = label_dic(tree1)
+    d2 = label_dic(tree2)
+    s1 = set(d1.keys())   
+    s2 = set(d2.keys())
+    res = torch.zeros(1)
+    for key in s1 & s2:
+        res += (d1[key]-d2[key]).norm()**2
+    for key in s1 - s2:
+        res += (d1[key]).norm()**2
+    for key in s2 - s1:
+        res += (d2[key]).norm()**2
+    return res
+        
 
-def tree_distance_metric_list(pred_tree, target_tree, order=True, samples=10, device=torch.device('cpu')):
+def tree_distance_metric_list(pred_tree, target_tree, order=False, samples=10, device=torch.device('cpu')):
     # if we don't consider the isomorphisms
     if order == False:
         res = []
         for i in range(len(pred_tree)):
             vd_list = []
             for j in range(len(target_tree)):
-                vd = tree_distance_metric(pred_tree[i], target_tree[j])
+                vd = tree_distance_dic(pred_tree[i], target_tree[j])
                 vd_list.append(vd)
             res.append(torch.min(torch.stack(vd_list)))
         return sum(res)/len(res)
     # if we consider the isomorphsims
     if order == True:
-        # randomly select 10 iso
-        res_list = []
-        # indicator_string_list = ['0'*len(target_tree)] + random.sample(["".join(seq) for seq in itertools.product("01", repeat=len(target_tree))], samples-1)
-        indicator_string_list = ['000000000']   # Fixed target tree
-        for indicator_string in indicator_string_list:
-            res = 0
-            new_target_tree = target_tree.copy()
-            for i in range(len(indicator_string)):
-                if indicator_string[i] == '1':
-                    node = new_target_tree[i]
-                    # Swap the left and right child
-                    tmp = node.leftchild
-                    node.leftchild = node.rightchild
-                    node.rightchild = tmp
-                    new_target_tree[i] = node
-            for i in range(len(pred_tree)):
-                tmp_list = []
-                for j in range(len(new_target_tree)):
-                    tmp = tree_distance_metric(pred_tree[i], new_target_tree[j])
-                    tmp_list.append(tmp)
-                res += min(tmp_list)
-            res_list.append(res)
-        # return torch.tensor(min(res_list)/len(pred_tree), device=device)
-
-        # with open('TDM_losses.txt', 'a') as f:
-        #     f.write('%f '*10 % tuple([loss.item() for loss in res_list]) + '\n')
-        #     f.close()
-
-        tree_distance = min(res_list) / len(pred_tree)
-        return tree_distance
+    	raise ValueError
