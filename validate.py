@@ -38,7 +38,10 @@ params['nb_val'] = N_VAL
 os.chdir(dirname)
 for i, state_dict in enumerate(state_dicts):
     print('[INFO] Performing validation on checkpoint', i)
-    model = GRU.RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['scoring_hidden_size'])
+    model = GRU.RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, scoring_hsize=params['scoring_hidden_size'],
+                           batch_size=params['batch_size'])
+    for name in state_dict:
+        print(name)
     model.load_state_dict(state_dict)
     train = trainer.RRNNTrainer(model, gru_model, X_train=None, y_train=None,
                                 X_val=X_val, y_val=y_val, params=params)
