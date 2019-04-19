@@ -99,8 +99,6 @@ class RRNNforGRUCell(nn.Module):
         for k in range(l):
             lst[k] = torch.mm(h_prev, self.L_list[k]) * torch.mm(r, self.R_list[k]) + self.b_list[k]
         scores = self.scoring(lst).squeeze()
-        print(scores)
-        print(self.margin(scores))
         G_structure.append(torch.argmax(scores).item())
         rh = (lst*torch.nn.Softmax(dim=0)(scores).reshape(l, 1, 1)).sum(dim=0)
         margins.append(self.margin(scores))
