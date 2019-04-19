@@ -7,9 +7,8 @@ import torch
 from torch import nn
 import torch.multiprocessing as mp
 import numpy as np
-from torch.utils.data import DataLoader
+from torch.utils.data import TensorDataset, DataLoader
 import time
-import json
 
 # import tree_methods_parallel as tree_methods
 import tree_methods
@@ -178,6 +177,82 @@ class RRNNTrainer:
 
         self.model.eval()
 
+    def train_step_cuda(self, X, y):
+        """Trains the RRNN for the given batch of data points
+
+        Inputs:
+            X: Tensor of shape (batch_size * time_steps * hidden_size)
+            y: Tensor of shape (batch_size * time_steps * hidden_size), one-hot
+            
+        Returns:
+            losses
+            accuracy
+            
+        Requires:
+            self.batch_size (hard-coded below, replace later) = 64
+            self.time_steps (hard-coded below, replace later) = 20
+            self.hidden_size (hard-coded below, replace later) = 100
+            self.model = RRNNforGRU
+            self.gru_model
+            self.params
+            self.loss = torch.nn.CrossEntropyLoss()
+            
+        """
+        # should be replaced by self.xxx later
+        batch_size = X.shape[0] #self.batch_size
+        time_steps = X.shape[1]
+        HIDDEN_SIZE = X.shape[2]    # self.hidden_size
+     
+        # forward pass
+        pred_chars_batch, h_batch, pred_tree_list, structures_list, margins_batch = self.model(X)
+        
+        # forward pass of ground-truth GRU
+        gru_h_list = self.gru_model(X)[0]
+        gru_h_list = torch.cat([torch.zeros([batch_size, 1, HIDDEN_SIZE], device=X.device), gru_h_list], dim=1)
+        target_tree_list = []
+        for t in range(time_steps):
+            gru_x = X[:, t, :].reshape(batch_size, 1, HIDDEN_SIZE)
+            gru_h = gru_h_list[:, t, :].reshape(batch_size, 1, HIDDEN_SIZE)
+            target_tree = tree_methods.GRUtree_pytorch(gru_x, gru_h,
+                                                       self.gru_model.weight_ih_l0,
+                                                       self.gru_model.weight_hh_l0,
+                                                       self.gru_model.bias_ih_l0,
+                                                       self.gru_model.bias_hh_l0)[1]
+            target_tree_list.append(target_tree)
+        
+        # get weight for each loss terms
+        lamb1, lamb2, lamb3, lamb4 = self.params['lambdas']
+        
+        # calculate loss terms
+        loss1 = 0
+        if lamb1 != 0:
+            for i_time in range(y.shape[1]):
+                loss1 += self.loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1))
+        
+        loss2 = 0
+#        # TODO
+#        if lamb2 != 0:
+#            desired_margin = params['loss2_margin']
+#            loss2 = 0
+            
+        loss3 = 0
+        if lamb3 != 0:
+            for param in self.model.parameters():
+                loss3 += param.norm()**2
+        
+        loss4 = 0
+        if lamb4 != 0:
+            for i_time_step in range(time_steps):
+                loss4 += tree_methods.tree_distance_metric_list(
+                                            pred_tree_list[i_time_step], 
+                                            target_tree_list[i_time_step])
+        
+        losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
+        accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum()/(time_steps*batch_size)
+        
+        return losses, accuracy.item()
+
+
     def train_batch(self, X_batch, y_batch):
          # zero gradients
         self.optimizer.zero_grad()
@@ -229,6 +304,9 @@ class RRNNTrainer:
         with open(TRAIN_ACC_FILE, 'a') as f:
             f.write('%f\n' % train_acc)
         f.close()
+
+
+
 
     # TODO: Remove verbose and just always print stuff.
     # TODO: Turn off multiprocessing when in debug mode.
@@ -387,8 +465,8 @@ def run(params):
     R3 = W_hn
     b3 = b_in #+ r*b_hn
 
-    model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, params['multiplier'],
-                       params['scoring_hidden_size'])
+    model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, batch_size=params['batch_size'],
+                       scoring_hsize=params['scoring_hidden_size'])
 
     # Warm-start with pretrained GRU weights
     if params['pretrained_weights']:
@@ -413,15 +491,20 @@ def run(params):
 
     filename = os.path.join('..', params['data_file'])  # Since we're in the output dir
     print('[INFO] Loading training data into memory.')
-    # TODO: Include other datasets
-    train_set = standard_data.EnWik8Clean(subset='train')
-    validation_set = standard_data.EnWik8Clean(subset='val')
-    train_dataloader = DataLoader(train_set, batch_size=params['batch_size'], shuffle=True)
-    val_dataloader = DataLoader(validation_set, batch_size=params['batch_size'], shuffle=True)
+    data = standard_data.load_standard_data()
+    (X_train, y_train), (X_val, y_val), (X_test, y_test) = data
+    nb_train = params['nb_train']
+    nb_val = params['nb_val']
+    if X_train.size()[0] > nb_train:
+        X_train = X_train[:nb_train]
+        y_train = y_train[:nb_train]
+    if X_val.size()[0] > nb_val:
+        X_val = X_val[:nb_val]
+        y_val = y_val[:nb_val]
     print('[INFO] Beginning training with %d training samples and %d '
-          'validation samples.' % (len(train_set), len(validation_set)))
+          'validation samples.' % (X_train.size()[0], X_val.size()[0]))
 
-    trainer = RRNNTrainer(model, gru_model, train_dataloader, val_dataloader, params)
+    trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, params)
     trainer.train(params['epochs'], n_processes=params['n_processes'])
 
     runtime = time.time() - start
@@ -433,16 +516,59 @@ def run(params):
 
 if __name__ == '__main__':
 
-    if len(sys.argv) != 3:
-        raise Exception('Usage: python trainer.py <output_dir> <JSON parameter file>')
-    dirname = sys.argv[1]
-    param_file = sys.argv[2]
-    with open(param_file, 'r') as f:
-        params = json.load(f)
-
-    if not params['warm_start']:
-        os.mkdir(dirname)
-    os.chdir(dirname)
-
-    run(params)
-
+    params = {
+        'learning_rate': 1e-4,
+        'multiplier': 1,
+        'lambdas': (1, 1, 1, 1),
+        'nb_train': 1000,   # Only meaningful if it's less than the training set size
+        'nb_val': 0,
+        'validate_every': 1000,  # How often to evaluate the validation set (iterations)
+        'epochs': 100,
+        'n_processes': mp.cpu_count(),
+        'loss2_margin': 1,
+        'scoring_hidden_size': 64,     # Set to None for no hidden layer
+        'batch_size': 64,
+        'verbose': True,
+        'epochs_per_checkpoint': 1,
+        'optimizer': 'adam',
+        'debug': False,  # Turns multiprocessing off so pdb works
+        'data_file': 'enwik8_clean.txt',
+        'embeddings': 'gensim',
+        'max_grad': 1,  # Max norm of gradients. Set to None for no clipping
+        'initial_train_mode': 'weights',
+        'alternate_every': 1,    # Switch training mode after this many epochs
+        'warm_start': False,
+        'weights_file': 'epoch_0.pt',
+        'pretrained_weights': True  # Whether to train from GRU weights
+    }
+    
+    # the minimum set of parameters needed to run trainer.train_step_cuda
+    params = {
+        'learning_rate': 1e-4,
+        'lambdas': (1, 1, 1, 1),
+        'loss2_margin': 1,
+        'scoring_hidden_size': 64,     # Set to None for no hidden layer
+        'batch_size': 64,
+        'optimizer': 'adam',
+        'initial_train_mode': 'weights'}
+    
+    # test case for trainer.train_step_cuda
+    gru_model = torch.load('./gru_parameters.pkl')
+    model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, batch_size=params['batch_size'],
+                       scoring_hsize=params['scoring_hidden_size'])
+    data = standard_data.load_standard_data()
+    (X_train, y_train), (X_val, y_val), (X_test, y_test) = data
+    X = X_train[:params['batch_size'], :, :]
+    y = y_train[:params['batch_size'], :, :]
+    trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, params)
+    losses, acc = trainer.train_step_cuda(X, y)
+    
+    
+#    if len(sys.argv) != 2:
+#        raise Exception('Usage: python trainer.py <output_dir>')
+#    dirname = sys.argv[1]
+#    if not params['warm_start']:
+#        os.mkdir(dirname)
+#    os.chdir(dirname)
+#
+#    run(params)
