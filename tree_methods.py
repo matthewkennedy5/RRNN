@@ -40,7 +40,7 @@ def GRUtree_pytorch(x, h, weight_ih_l0, weight_hh_l0, bias_ih_l0, bias_hh_l0):
     b_ir, b_iz, b_in = bias_ih_l0.chunk(3)
     b_hr, b_hz, b_hn = bias_hh_l0.chunk(3)
 
-    o = torch.zeros(x.shape)
+    o = torch.zeros(x.shape, device=x.device)
     r = torch.sigmoid(torch.matmul(x, W_ir) + b_ir + torch.matmul(h, W_hr) + b_hr)
     z = torch.sigmoid(torch.matmul(x, W_iz) + b_iz + torch.matmul(h, W_hz) + b_hz)
     rh = r*h
@@ -97,17 +97,15 @@ def tree_distance_dic(tree1, tree2):
     return res
         
 
-def tree_distance_metric_list(pred_tree, target_tree, order=False, samples=10, device=torch.device('cpu')):
-    # if we don't consider the isomorphisms
-    if order == False:
-        res = []
-        for i in range(len(pred_tree)):
-            vd_list = []
-            for j in range(len(target_tree)):
-                vd = tree_distance_dic(pred_tree[i], target_tree[j])
-                vd_list.append(vd)
-            res.append(torch.min(torch.stack(vd_list)))
-        return sum(res)/len(res)
-    # if we consider the isomorphsims
-    if order == True:
-    	raise ValueError
+def tree_distance_metric_list(pred_tree, target_tree):
+    res = []
+    for i in range(len(pred_tree)):
+        vd_list = []
+        tree1 = pred_tree[i]
+        for j in range(len(target_tree)):
+            tree2 = target_tree[j]
+            vd = tree_distance_dic(tree1, tree2)
+            vd_list.append(vd)
+        res.append(torch.min(torch.stack(vd_list)))
+    return sum(res)
+
