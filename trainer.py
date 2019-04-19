@@ -318,17 +318,15 @@ class RRNNTrainer:
         if self.lamb2 != 0:
             desired_margin = self.params['loss2_margin']
             for m in margins:
-                if m < desired_margin:
-                    # Here the subtraction comes from the fact that we want the
-                    # loss to be 0 when the difference >= LOSS2_MARGIN,
-                    # and equal to 1 when the difference is 0. Therefore,
-                    # loss2 will always be between 0 and the number of
-                    # vectors we have. We divide by LOSS2_MARGIN to scale
-                    # the loss term to be between 0 and 1, so it LOSS2_MARGIN
-                    # doesn't affect the overall scale of loss2.
-                    value = torch.clamp(m, min=0) / desired_margin
-                    if value > 0:
-                        loss2 += value
+                # Here the subtraction comes from the fact that we want the
+                # loss to be 0 when the difference >= LOSS2_MARGIN,
+                # and equal to 1 when the difference is 0. Therefore,
+                # loss2 will always be between 0 and the number of
+                # vectors we have. We divide by LOSS2_MARGIN to scale
+                # the loss term to be between 0 and 1, so it LOSS2_MARGIN
+                # doesn't affect the overall scale of loss2.
+                value = torch.sum(torch.clamp(m, min=0) / desired_margin)
+                loss2 += value
 
         loss3 = 0
         if self.lamb3 != 0:
@@ -343,12 +341,12 @@ class RRNNTrainer:
 
         losses = (self.lamb1*loss1, self.lamb2*loss2, self.lamb3*loss3, self.lamb4*loss4)
 
-        # # Record the structure
-        # # TODO: Put this in train_batch. We don't want this to happen during validation.
-        # structure_file = open('structure.txt', 'a')
-        # # is_gru = structures_are_equal(structure, GRU_STRUCTURE)
-        # structure_file.write(str(structure) + '\n')
-        # structure_file.close()
+        # Record the structure
+        # TODO: Put this in train_batch. We don't want this to happen during validation.
+        structure_file = open('structure.txt', 'a')
+        # is_gru = structures_are_equal(structure, GRU_STRUCTURE)
+        structure_file.write(str(structures) + '\n')
+        structure_file.close()
 
         accuracy = 0
         for i in range(y.shape[1]):
@@ -436,10 +434,10 @@ if __name__ == '__main__':
         'learning_rate': 1e-4,
         'multiplier': 1,
         'lambdas': (1, 1, 1, 0),
-        'nb_train': 10,   # Only meaningful if it's less than the training set size
-        'nb_val': 10,
+        'nb_train': 100,   # Only meaningful if it's less than the training set size
+        'nb_val': 0,
         # TODO: Make this epochs
-        'validate_every': 1,  # How often to evaluate the validation set (iterations)
+        'validate_every': 10,  # How often to evaluate the validation set (iterations)
         'epochs': 1,
         'n_processes': mp.cpu_count(),
         'loss2_margin': 1,
@@ -448,7 +446,7 @@ if __name__ == '__main__':
         'verbose': True,
         'epochs_per_checkpoint': 1,
         'optimizer': 'adam',
-        'debug': False,  # Turns multiprocessing off so pdb works
+        'debug': True,  # Turns multiprocessing off so pdb works
         'data_file': 'enwik8_clean.txt',
         'embeddings': 'gensim',
         'max_grad': 1,  # Max norm of gradients. Set to None for no clipping

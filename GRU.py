@@ -99,8 +99,6 @@ class RRNNforGRUCell(nn.Module):
         for k in range(l):
             lst[k] = torch.mm(h_prev, self.L_list[k]) * torch.mm(r, self.R_list[k]) + self.b_list[k]
         scores = self.scoring(lst).squeeze()
-        print(scores)
-        print(self.margin(scores))
         G_structure.append(torch.argmax(scores).item())
         rh = (lst*torch.nn.Softmax(dim=0)(scores).reshape(l, 1, 1)).sum(dim=0)
         margins.append(self.margin(scores))
@@ -167,6 +165,7 @@ class RRNNforGRUCell(nn.Module):
             node.leftchild.parent = node
             node.rightchild.parent = node
 
+        margins = torch.stack(margins)
         return h_next, G_structure, G_node, margins
 
 
@@ -194,7 +193,7 @@ class RRNNforGRU(nn.Module):
         for t in range(time_steps):
             x_t = inputs[:, t, :].reshape(1, -1)
             h_next, G_structure, G_node, margins = self.cell(x_t, h_next)
-            
+
             pred_chars_list.append(self.output_layer(h_next))
             h_list.append(h_next)
             structures_list.append(G_structure)
@@ -205,7 +204,7 @@ class RRNNforGRU(nn.Module):
 
 
 if __name__ == '__main__':
-	HIDDEN_SIZE = 50
+    HIDDEN_SIZE = 50
     # test case for RRNNforGRUCell
     x = torch.randn(1, HIDDEN_SIZE)
     hidden = torch.randn(1, HIDDEN_SIZE)
@@ -213,7 +212,7 @@ if __name__ == '__main__':
     h_next, G_structure, G_node, margins = cell(x, hidden)
 
     # test case for RRNNforGRU
-	inputs = torch.randn(1, 3, HIDDEN_SIZE)
+    inputs = torch.randn(1, 3, HIDDEN_SIZE)
     model = RRNNforGRU(hidden_size=HIDDEN_SIZE, vocab_size=27)
     pred_chars_list, h_list, pred_tree_list, structures_list, margins_list = model(inputs)
 
