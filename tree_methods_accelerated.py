@@ -100,12 +100,14 @@ def tree_distance_dic(tree1, tree2):
 def tree_distance_metric_list(pred_tree, target_tree, order=False, samples=10, device=torch.device('cpu')):
     # if we don't consider the isomorphisms
     if order == False:
+        res = []
         for i in range(len(pred_tree)):
-            tmp_list = []
+            vd_list = []
             for j in range(len(target_tree)):
-                tmp = tree_distance_dic(pred_tree[i], target_tree[j])
-                tmp_list.append(tmp)
-        return torch.tensor(min(tmp_list), device=device)
+                vd = tree_distance_dic(pred_tree[i], target_tree[j])
+                vd_list.append(vd)
+            res.append(torch.min(torch.stack(vd_list)))
+        return sum(res)/len(res)
     # if we consider the isomorphsims
     if order == True:
     	raise ValueError
