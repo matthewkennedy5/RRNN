@@ -5,6 +5,7 @@ import numpy as np
 import pdb
 from tqdm import tqdm
 from gensim.models import Word2Vec
+from torch.utils import data
 from dataloader import element_dict
 
 dirname = os.path.dirname(os.path.realpath(__file__))
@@ -12,7 +13,7 @@ CORPUS_FILENAME = os.path.join(dirname, 'enwik8_clean.txt')
 SAVE_FILE = os.path.join(dirname, '10k_data.pkl')
 CHUNK_LENGTH = 20
 EMBEDDINGS = 'gensim'
-N_TRAIN = 5000
+N_TRAIN = 10000
 N_VAL = 1000
 N_TEST = 2000
 N_CHARS = len(element_dict)
@@ -159,6 +160,9 @@ def load_standard_data():
     The point of this method is that if we're comparing RRNN to GRU, we want to
     use the same data. So we specifically store the data that we use so we can
     use it to train and evaluate both models instead of randomly selecting samples.
+
+    Returns:
+        data - Tuple of ((X_train, y_train), (X_val, y_val), (X_test, y_test)).
     """
     if not os.path.isfile(SAVE_FILE):
         print('[INFO] Partitioning fresh training, validation, and test data '
@@ -167,4 +171,35 @@ def load_standard_data():
 
     data = pickle.load(open(SAVE_FILE, 'rb'))
     return data
+
+
+class EnWik8Clean(data.Dataset):
+    """Dataset containing the enwik8_clean.txt 27-character Wikipedia data.
+
+    Inputs:
+        subset - either 'train', 'val', or 'test'.
+    """
+
+    def __init__(self, subset='train'):
+        train, val, test = load_standard_data()
+        if subset == 'train':
+            self.X, self.y = train
+        elif subset == 'val':
+            self.X, self.y = val
+        elif subset == 'test':
+            self.X, self.y = test
+        else:
+            raise ValueError('Subset input must be "train", "val", or "test"')
+
+    def __len__(self):
+        return self.X.shape[0]
+
+    def __getitem__(self, index):
+        return (self.X[index], self.y[index])
+
+
+
+
+
+
 
