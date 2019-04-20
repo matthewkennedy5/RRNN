@@ -18,8 +18,8 @@ from torch.utils.data import TensorDataset, DataLoader
 import itertools
 
 # import tree_methods_parallel as tree_methods
-import tree_methods_accelerated as tree_methods
-from GRU_parallel import RRNNforGRU
+import tree_methods
+from GRU import RRNNforGRU
 from structure_utils import structures_are_equal, GRU_STRUCTURE
 import pickle
 import pdb
@@ -30,8 +30,8 @@ VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
 batch_size = 64
 n_epoch = 1
+time_steps = 20
 
-device = torch.device('cpu')
 
 TRAIN_LOSS_FILE = 'loss.txt'
 TRAIN_ACC_FILE = 'train_acc.txt'
@@ -52,7 +52,7 @@ params = {
     'n_processes': mp.cpu_count(),
     'loss2_margin': 1,
     'scoring_hidden_size': 64,     # Set to None for no hidden layer
-    'batch_size': 16,
+    'batch_size': 64,
     'verbose': True,
     'epochs_per_checkpoint': 1,
     'optimizer': 'adam',
@@ -63,7 +63,8 @@ params = {
     'initial_train_mode': 'weights',
     'alternate_every': 5,    # Switch training mode after this many epochs
     'warm_start': False,
-    'weights_file': 'epoch_0.pt'
+    'weights_file': 'epoch_0.pt',
+    'cuda': True
 }
 
 dirname = 'test%s'%(time.asctime().replace(':', '_'))
@@ -76,29 +77,31 @@ model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, batch_size, params['scoring_hidden_s
 filename = os.path.join('..', params['data_file'])
 data = standard_data.load_standard_data()
 (X_train, y_train), (X_val, y_val), (X_test, y_test) = data
-X_train = X_train[:4096, :, :]
-y_train = y_train[:4096, :, :]
+X_train = X_train[:4992, :, :]
+y_train = y_train[:4992, :, :]
 
 if params['optimizer'] == 'adam':
     optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
 elif params['optimizer'] == 'sgd':
     optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'])
 
-lamb1, lamb2, lamb3, lamb4 = params['lambdas']
-loss = torch.nn.CrossEntropyLoss()
-#
-#CUDA = True
-#if CUDA is True:
-#    X_train = X_train.cuda()
-#    y_train = y_train.cuda()
-#    model = model.cuda()
-#    gru_model = gru_model.cuda()
+if params['cuda']:
+    gru_model = gru_model.cuda()
+    model = model.cuda()
+    X_train = X_train.cuda()
+    y_train = y_train.cuda()
 
 model.train()
+gru_model.train()
+
+
+lamb1, lamb2, lamb3, lamb4 = params['lambdas']
+loss = torch.nn.CrossEntropyLoss()
 
 timer=time.time()
 for i_epoch in range(n_epoch):
     for i_batch in range(X_train.shape[0]//batch_size):
+        optimizer.zero_grad()
         X = X_train[i_batch*batch_size:(i_batch+1)*batch_size, :, :]
         y = y_train[i_batch*batch_size:(i_batch+1)*batch_size, :, :]
         
@@ -107,7 +110,7 @@ for i_epoch in range(n_epoch):
         
         # forward pass of traditional GRU
         gru_h_list = gru_model(X)[0]
-        gru_h_list = torch.cat([torch.zeros(batch_size, 1, HIDDEN_SIZE), gru_h_list], dim=1)
+        gru_h_list = torch.cat([torch.zeros([batch_size, 1, HIDDEN_SIZE], device=X.device), gru_h_list], dim=1)
         target_tree_list = []
         for t in range(X.shape[1]):
             gru_x = X[:, t, :].reshape(batch_size, 1, HIDDEN_SIZE)
@@ -119,31 +122,21 @@ for i_epoch in range(n_epoch):
                                                        gru_model.bias_hh_l0)[1]
             target_tree_list.append(target_tree)
         
-        # calculate loss function
+        # get weight for each loss terms
+        lamb1, lamb2, lamb3, lamb4 = params['lambdas']
+        
+        # calculate loss terms
         loss1 = 0
         if lamb1 != 0:
             for i_time in range(y.shape[1]):
                 loss1 += loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1))
         
-        # loss2 is the negative sum of the scores (alpha) of the vector
-        # corresponding to each node. It is an attempt to drive up the scores for
-        # the correct vectors.
-#        loss2 = 0
+        loss2 = 0
+#        # TODO
 #        if lamb2 != 0:
 #            desired_margin = params['loss2_margin']
-#            for m in margins:
-#                if m < desired_margin:
-#                    # Here the subtraction comes from the fact that we want the
-#                    # loss to be 0 when the difference >= LOSS2_MARGIN,
-#                    # and equal to 1 when the difference is 0. Therefore,
-#                    # loss2 will always be between 0 and the number of
-#                    # vectors we have. We divide by LOSS2_MARGIN to scale
-#                    # the loss term to be between 0 and 1, so it LOSS2_MARGIN
-#                    # doesn't affect the overall scale of loss2.
-#                    value = torch.clamp(m, min=0) / desired_margin
-#                    if value > 0:
-#                        loss2 += value
-        
+#            loss2 = 0
+            
         loss3 = 0
         if lamb3 != 0:
             for param in model.parameters():
@@ -151,27 +144,19 @@ for i_epoch in range(n_epoch):
         
         loss4 = 0
         if lamb4 != 0:
-            for l in range(len(pred_tree_list)):
-                loss4 += tree_methods.tree_distance_metric_list(pred_tree_list[l],
-                                                                target_tree_list[l])
+            for i_time_step in range(time_steps):
+                loss4 += tree_methods.tree_distance_metric_list(
+                                            pred_tree_list[i_time_step], 
+                                            target_tree_list[i_time_step])
         
-        losses = (lamb1*loss1, lamb3*loss3, lamb4*loss4)
-        loss_fn = sum(losses)
+        losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
+        accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum()/(time_steps*batch_size)
+        
         
         # opt
+        loss_fn = sum(losses)
         loss_fn.backward()
         optimizer.step()
-        
+        print(gru_model.weight_ih_l0.norm())
         print(i_batch, loss_fn.item(), time.time()-timer)
         
-
-
-
-
-
-
-
-
-
-
-
