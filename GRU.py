@@ -140,22 +140,25 @@ class RRNNforGRUCell(nn.Module):
         h_next = torch.matmul(softmax_func(scores), lst)
         G_structure[:, 8] = torch.argmax(scores, dim=2).squeeze().tolist() 
 
-        # set up nodes
-        o = torch.zeros([batch_size, 1, self.hidden_size], device=x.device)
-        z_1Node = Node(z_1, name='z_1', structure=G_structure[0], left_child=Node(x, 'x'), right_child=Node(h_prev, 'h'))
-        rNode = Node(r, name='r', structure=G_structure[1], left_child=Node(x, 'x'), right_child=Node(h_prev, 'h'))
-        z_2Node = Node(z_2, name='z_2', structure=G_structure[2], left_child=Node(x, 'x'), right_child=Node(h_prev, 'h'))
-        rhNode = Node(rh, name='r*h', structure=G_structure[3], left_child=Node(h_prev, 'h'), right_child=rNode)
-        h_tildeNode = Node(h_tilde, name='h_tilde', structure=G_structure[4], left_child=Node(x, 'x'), right_child=rhNode)
-        oneMinuszNode = Node(oneMinusZ1, name='1-z', structure=G_structure[5], left_child=Node(o, '0'), right_child=z_1Node)
-        zh_tildeNode = Node(zh_tilde, name='(1-z)*h_tilde', structure=G_structure[6], left_child=h_tildeNode, right_child=oneMinuszNode)
-        zhNode = Node(z2h, name='z*h', structure=G_structure[7], left_child=Node(h_prev, 'h'), right_child=z_2Node)
-        h_nextNode = Node(h_next, name='h_next', structure=G_structure[8], left_child=zh_tildeNode, right_child=zhNode)
+#        # set up nodes
+#        o = torch.zeros([batch_size, 1, self.hidden_size], device=x.device)
+#        z_1Node = Node(z_1, name='z_1', structure=G_structure[0], left_child=Node(x, 'x'), right_child=Node(h_prev, 'h'))
+#        rNode = Node(r, name='r', structure=G_structure[1], left_child=Node(x, 'x'), right_child=Node(h_prev, 'h'))
+#        z_2Node = Node(z_2, name='z_2', structure=G_structure[2], left_child=Node(x, 'x'), right_child=Node(h_prev, 'h'))
+#        rhNode = Node(rh, name='r*h', structure=G_structure[3], left_child=Node(h_prev, 'h'), right_child=rNode)
+#        h_tildeNode = Node(h_tilde, name='h_tilde', structure=G_structure[4], left_child=Node(x, 'x'), right_child=rhNode)
+#        oneMinuszNode = Node(oneMinusZ1, name='1-z', structure=G_structure[5], left_child=Node(o, '0'), right_child=z_1Node)
+#        zh_tildeNode = Node(zh_tilde, name='(1-z)*h_tilde', structure=G_structure[6], left_child=h_tildeNode, right_child=oneMinuszNode)
+#        zhNode = Node(z2h, name='z*h', structure=G_structure[7], left_child=Node(h_prev, 'h'), right_child=z_2Node)
+#        h_nextNode = Node(h_next, name='h_next', structure=G_structure[8], left_child=zh_tildeNode, right_child=zhNode)
 
-        G_node = [z_1Node, rNode, z_2Node, rhNode, h_tildeNode, oneMinuszNode, zh_tildeNode, zhNode, h_nextNode]
-        for node in G_node:
-            node.leftchild.parent = node
-            node.rightchild.parent = node
+#        G_node = [z_1Node, rNode, z_2Node, rhNode, h_tildeNode, oneMinuszNode, zh_tildeNode, zhNode, h_nextNode]
+#        for node in G_node:
+#            node.leftchild.parent = node
+#            node.rightchild.parent = node
+        
+        G_node = torch.cat([z_1, r, z_2, rh, h_tilde, oneMinusZ1, zh_tilde, z2h, h_next], dim=2)
+        # shape: batch_size * 1 * (nodes_num*hidden_size)
 
         return h_next, G_structure, G_node, margins
 
