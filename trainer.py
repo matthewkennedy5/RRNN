@@ -550,17 +550,25 @@ if __name__ == '__main__':
         'scoring_hidden_size': 64,     # Set to None for no hidden layer
         'batch_size': 64,
         'optimizer': 'adam',
-        'initial_train_mode': 'weights'}
+        'initial_train_mode': 'weights',
+        'cuda': True}
     
     # test case for trainer.train_step_cuda
     gru_model = torch.load('./gru_parameters.pkl')
-    model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, batch_size=params['batch_size'],
-                       scoring_hsize=params['scoring_hidden_size'])
+    model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, batch_size=params['batch_size'], scoring_hsize=params['scoring_hidden_size'])
     data = standard_data.load_standard_data()
     (X_train, y_train), (X_val, y_val), (X_test, y_test) = data
+    
+    if params['cuda']:
+        gru_model = gru_model.cuda()
+        model = model.cuda()
+        X_train = X_train.cuda()
+        y_train = y_train.cuda()
+        
     X = X_train[:params['batch_size'], :, :]
     y = y_train[:params['batch_size'], :, :]
     trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, params)
+    
     losses, acc = trainer.train_step_cuda(X, y)
     
     
