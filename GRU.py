@@ -93,52 +93,52 @@ class RRNNforGRUCell(nn.Module):
         z_2 = torch.sigmoid(torch.matmul(x, self.L_list[0]) + torch.matmul(h_prev, self.R_list[0]) + self.b_list[0])
 
         # h*r
-        lst = torch.zeros(batch_size, l, self.hidden_size)
+        lst = torch.zeros([batch_size, l, self.hidden_size], device=x.device)
         for k in range(l):
             lst[:, k, :] = (torch.matmul(h_prev, self.L_list[k]) * torch.matmul(r, self.R_list[k]) + self.b_list[k]).squeeze(dim=1)
         scores = self.scoring(lst).reshape(batch_size, 1, l)
         rh = torch.matmul(softmax_func(scores), lst)
-        G_structure[:, 3] = torch.argmax(scores, dim=2).squeeze()
+        G_structure[:, 3] = torch.argmax(scores, dim=2).squeeze().tolist()
 
         # h_tilde
-        lst = torch.zeros(batch_size, l, self.hidden_size)
+        lst = torch.zeros([batch_size, l, self.hidden_size], device=x.device)
         for k in range(l):
             lst[:, k, :] = (torch.tanh(torch.matmul(x, self.L_list[k]) + torch.matmul(rh, self.R_list[k]) + self.b_list[k])).squeeze(dim=1)
         scores = self.scoring(lst).reshape(batch_size, 1, l)
         h_tilde = torch.matmul(softmax_func(scores), lst)
-        G_structure[:, 4] = torch.argmax(scores, dim=2).squeeze()            
+        G_structure[:, 4] = torch.argmax(scores, dim=2).squeeze().tolist()            
 
         #oneMinusz
-        lst = torch.zeros(batch_size, l, self.hidden_size)
+        lst = torch.zeros([batch_size, l, self.hidden_size], device=x.device)
         for k in range(l):
             lst[:, k, :] = (1 - (torch.matmul(z_1, self.R_list[k]) + self.b_list[k])).squeeze(dim=1)
         scores = self.scoring(lst).reshape(batch_size, 1, l)
         oneMinusZ1 = torch.matmul(softmax_func(scores), lst)
-        G_structure[:, 5] = torch.argmax(scores, dim=2).squeeze()  
+        G_structure[:, 5] = torch.argmax(scores, dim=2).squeeze().tolist()  
 
         # (1-z)*h_tilde
-        lst = torch.zeros(batch_size, l, self.hidden_size)
+        lst = torch.zeros([batch_size, l, self.hidden_size], device=x.device)
         for k in range(l):
             lst[:, k, :] = (torch.matmul(h_tilde, self.L_list[k])*torch.matmul(oneMinusZ1, self.R_list[k]) + self.b_list[k]).squeeze(dim=1)
         scores = self.scoring(lst).reshape(batch_size, 1, l)
         zh_tilde = torch.matmul(softmax_func(scores), lst)
-        G_structure[:, 6] = torch.argmax(scores, dim=2).squeeze()  
+        G_structure[:, 6] = torch.argmax(scores, dim=2).squeeze().tolist()  
         
         # z2*h
-        lst = torch.zeros(batch_size, l, self.hidden_size)
+        lst = torch.zeros([batch_size, l, self.hidden_size], device=x.device)
         for k in range(l):
             lst[:, k, :] = (torch.matmul(h_prev, self.L_list[k])*torch.matmul(z_2, self.R_list[k]) + self.b_list[k]).squeeze(dim=1)
         scores = self.scoring(lst).reshape(batch_size, 1, l)
         z2h = torch.matmul(softmax_func(scores), lst)
-        G_structure[:, 7] = torch.argmax(scores, dim=2).squeeze()
+        G_structure[:, 7] = torch.argmax(scores, dim=2).squeeze().tolist()
 
         # h_t
-        lst = torch.zeros(batch_size, l, self.hidden_size)
+        lst = torch.zeros([batch_size, l, self.hidden_size], device=x.device)
         for k in range(l):
             lst[:, k, :] = (torch.matmul(zh_tilde, self.L_list[k]) + torch.matmul(z2h, self.R_list[k]) + self.b_list[k]).squeeze(dim=1)
         scores = self.scoring(lst).reshape(batch_size, 1, l)
         h_next = torch.matmul(softmax_func(scores), lst)
-        G_structure[:, 8] = torch.argmax(scores, dim=2).squeeze()  
+        G_structure[:, 8] = torch.argmax(scores, dim=2).squeeze().tolist() 
 
         # set up nodes
         o = torch.zeros([batch_size, 1, self.hidden_size], device=x.device)
@@ -161,7 +161,6 @@ class RRNNforGRUCell(nn.Module):
 
 
 class RRNNforGRU(nn.Module):
-
     def __init__(self, hidden_size, vocab_size, batch_size, scoring_hsize=None):
         super(RRNNforGRU, self).__init__()
         self.vocab_size = vocab_size
@@ -216,6 +215,7 @@ if __name__ == '__main__':
         model = RRNNforGRU(HIDDEN_SIZE, vocab_size=27, batch_size=BATCH_SIZE)
         pred_chars_batch, h_batch, pred_tree_list, structures_list, margins_batch = model(inputs)
     print(time.time()-timer)
+    
     
    
     
