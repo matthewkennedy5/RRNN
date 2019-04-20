@@ -50,22 +50,25 @@ def GRUtree_pytorch(x, h, weight_ih_l0, weight_hh_l0, bias_ih_l0, bias_hh_l0):
     zh_tilde = oneMinusz*h_tilde
     h_next = zh + zh_tilde
 
-    z_1Node = Node(z,  name='z1', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
-    rNode = Node(r, name='r', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
-    z_2Node = Node(z,  name='z2', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
-    rhNode = Node(rh, name='r*h', left_child=Node(h, 'h'), right_child=rNode)
-    h_tildeNode = Node(h_tilde, name='h_tilde', left_child=Node(x, 'x'), right_child=rhNode)
-    oneMinuszNode = Node(oneMinusz, name='1-z', left_child=Node(o, '0'), right_child=z_1Node)
-    zh_tildeNode = Node(zh_tilde, name='(1-z)*h_tilde', left_child=h_tildeNode, right_child=oneMinuszNode)
-    zhNode = Node(zh, name='z*h', left_child=Node(h, 'h'), right_child=z_2Node)
-    h_nextNode = Node(h_next, name='h_next', left_child=zh_tildeNode, right_child=zhNode)
-
-    node_list = [z_1Node, rNode, z_2Node, rhNode, h_tildeNode, oneMinuszNode, zh_tildeNode, zhNode, h_nextNode]
-    for node in node_list:
-        node.leftchild.parent = node
-        node.rightchild.parent = node
-        
-    return h_nextNode, node_list
+#    z_1Node = Node(z,  name='z1', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
+#    rNode = Node(r, name='r', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
+#    z_2Node = Node(z,  name='z2', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
+#    rhNode = Node(rh, name='r*h', left_child=Node(h, 'h'), right_child=rNode)
+#    h_tildeNode = Node(h_tilde, name='h_tilde', left_child=Node(x, 'x'), right_child=rhNode)
+#    oneMinuszNode = Node(oneMinusz, name='1-z', left_child=Node(o, '0'), right_child=z_1Node)
+#    zh_tildeNode = Node(zh_tilde, name='(1-z)*h_tilde', left_child=h_tildeNode, right_child=oneMinuszNode)
+#    zhNode = Node(zh, name='z*h', left_child=Node(h, 'h'), right_child=z_2Node)
+#    h_nextNode = Node(h_next, name='h_next', left_child=zh_tildeNode, right_child=zhNode)
+#
+#    node_list = [z_1Node, rNode, z_2Node, rhNode, h_tildeNode, oneMinuszNode, zh_tildeNode, zhNode, h_nextNode]
+#    for node in node_list:
+#        node.leftchild.parent = node
+#        node.rightchild.parent = node
+#        
+#    return h_nextNode, node_list
+    
+    vectors = [z, r, z, rh, h_tilde, oneMinusz, zh_tilde, zh, h_next]
+    return [], torch.cat(vectors, dim=2)
 
 
 
