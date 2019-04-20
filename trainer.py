@@ -242,10 +242,13 @@ class RRNNTrainer:
         
         loss4 = 0
         if lamb4 != 0:
-            for i_time_step in range(time_steps):
-                loss4 += tree_methods.tree_distance_metric_list(
-                                            pred_tree_list[i_time_step], 
-                                            target_tree_list[i_time_step])
+            pred_tree_list = torch.cat(pred_tree_list, dim=1)
+            target_tree_list = torch.cat(target_tree_list, dim=1)
+            loss4 = (pred_tree_list-target_tree_list).norm()**2
+            #            for i_time_step in range(time_steps):
+#                loss4 += tree_methods.tree_distance_metric_list(
+#                                            pred_tree_list[i_time_step], 
+#                                            target_tree_list[i_time_step])
         
         losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
         accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum()/(time_steps*batch_size)
