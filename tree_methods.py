@@ -87,7 +87,7 @@ def tree_distance_dic(tree1, tree2):
     d2 = label_dic(tree2)
     s1 = set(d1.keys())   
     s2 = set(d2.keys())
-    res = torch.zeros(1)
+    res = 0
     for key in s1 & s2:
         res += (d1[key]-d2[key]).norm()**2
     for key in s1 - s2:
