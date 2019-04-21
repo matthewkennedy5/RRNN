@@ -204,11 +204,13 @@ class RRNNTrainer:
         if lamb2 != 0:
             desired_margin = params['loss2_margin']
             loss2 = (desired_margin - margins_batch.clamp(max=desired_margin)).sum()/desired_margin
+            loss2 /= batch_size
 
         loss3 = 0
         if lamb3 != 0:
             for param in self.model.parameters():
                 loss3 += param.norm()**2
+            loss3 /= batch_size
 
         loss4 = 0
         if lamb4 != 0:
@@ -219,6 +221,7 @@ class RRNNTrainer:
 #                loss4 += tree_methods.tree_distance_metric_list(
 #                                            pred_tree_list[i_time_step],
 #                                            target_tree_list[i_time_step])
+            loss4 /= batch_size
 
         losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
         accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*batch_size)
@@ -232,9 +235,8 @@ class RRNNTrainer:
 
         Prints the validation loss and accuracy to their respective files.
         """
-        with torch.no_grad():
-            X_val, y_val = next(iter(self.val_data))
-            losses, accuracy, _ = self.train_step_cuda(X_val, y_val)
+        X_val, y_val = next(iter(self.val_data))
+        losses, accuracy, _ = self.train_step_cuda(X_val, y_val)
 
         print('val_loss:', printable(losses), 'val_acc:', accuracy)
         with open(VAL_LOSS_FILE, 'a') as f:
