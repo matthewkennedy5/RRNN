@@ -28,8 +28,8 @@ import standard_data
 
 VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
-batch_size = 64
-n_epoch = 1
+batch_size = 128
+n_epoch = 100
 time_steps = 20
 
 
@@ -41,9 +41,9 @@ HYPERPARAM_FILE = 'hyperparameters.pkl'
 RUNTIME_FILE = 'runtime.pkl'
 
 params = {
-    'learning_rate': 1e-4,
+    'learning_rate': 1e-3,
     'multiplier': 1,
-    'lambdas': (1, 1, 1, 1),
+    'lambdas': (1, 1e-2, 1e-1, 1e-4),
     'nb_train': 10,   # Only meaningful if it's less than the training set size
     'nb_val': 10,
     # TODO: Make this epochs
@@ -101,6 +101,7 @@ timer=time.time()
 for i_epoch in range(n_epoch):
     for i_batch in range(X_train.shape[0]//batch_size):
         optimizer.zero_grad()
+        model.train()
         X = X_train[i_batch*batch_size:(i_batch+1)*batch_size, :, :]
         y = y_train[i_batch*batch_size:(i_batch+1)*batch_size, :, :]
         
@@ -121,20 +122,24 @@ for i_epoch in range(n_epoch):
                                                        gru_model.bias_hh_l0)[1]
             target_tree_list.append(target_tree)
         
+#        gru_h_list = gru_h_list[:, 1:, :]
+#        gru_loss1 = 0
+#        for i_time in range(y.shape[1]):
+#            gru_loss1 += loss(model.output_layer(gru_h_list[:, i_time, :]), torch.argmax(y[:, i_time, :], dim=1))
+            
         # get weight for each loss terms
         lamb1, lamb2, lamb3, lamb4 = params['lambdas']
         
         # calculate loss terms
         loss1 = 0
-        if lamb1 != 0:
+        if lamb1 != 0:It 
             for i_time in range(y.shape[1]):
                 loss1 += loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1))
         
         loss2 = 0
-#        # TODO
-#        if lamb2 != 0:
-#            desired_margin = params['loss2_margin']
-#            loss2 = 0
+        if lamb2 != 0:
+            desired_margin = params['loss2_margin']
+            loss2 = (desired_margin - margins_batch.clamp(max=desired_margin)).sum()/desired_margin
             
         loss3 = 0
         if lamb3 != 0:
@@ -152,16 +157,24 @@ for i_epoch in range(n_epoch):
             target_tree_list = torch.cat(target_tree_list, dim=1)
             loss4 = (pred_tree_list-target_tree_list).norm()**2
             
+#        losses = [lamb1*loss1]
+#        losses = [lamb1*loss1, lamb3*loss3]
+#        losses = [lamb1*loss1, lamb3*loss3, lamb4*loss4]
         losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
-        accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum()/(time_steps*batch_size)
+
+        accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*batch_size)
         
         
         # opt
         loss_fn = sum(losses)
         loss_fn.backward()
         optimizer.step()
-        print(i_batch, loss_fn.item(), time.time()-timer)
-        
+        print('='*80)
+        print(i_epoch, i_batch, loss_fn.item(), time.time()-timer)
+        print([l.item() for l in losses])
+        print(accuracy, -np.log2(accuracy), loss1.item()/(20*np.log(2)))
+        # target bpc1: 1.17, bpc2: 2.73
+    
 
 
 

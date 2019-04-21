@@ -66,10 +66,8 @@ class RRNNforGRUCell(nn.Module):
             scores - Tensor of output from the scoring net. Must contain at
                 least two elements.
         """
-        sorted_indices = torch.sort(scores)[1]
-        highest = sorted_indices[-1]
-        second_highest = sorted_indices[-2]
-        return scores[highest] - scores[second_highest]
+        sorted_scores = torch.sort(scores)[0]
+        return sorted_scores[:, :, -1] - sorted_scores[:, :, -2]
 
 
     def forward(self, x, h_prev):
@@ -99,7 +97,8 @@ class RRNNforGRUCell(nn.Module):
         scores = self.scoring(lst).reshape(batch_size, 1, l)
         rh = torch.matmul(softmax_func(scores), lst)
         G_structure[:, 3] = torch.argmax(scores, dim=2).squeeze().tolist()
-
+        margins.append(self.margin(scores))
+        
         # h_tilde
         lst = torch.zeros([batch_size, l, self.hidden_size], device=x.device)
         for k in range(l):
@@ -107,6 +106,7 @@ class RRNNforGRUCell(nn.Module):
         scores = self.scoring(lst).reshape(batch_size, 1, l)
         h_tilde = torch.matmul(softmax_func(scores), lst)
         G_structure[:, 4] = torch.argmax(scores, dim=2).squeeze().tolist()            
+        margins.append(self.margin(scores))
 
         #oneMinusz
         lst = torch.zeros([batch_size, l, self.hidden_size], device=x.device)
@@ -115,6 +115,7 @@ class RRNNforGRUCell(nn.Module):
         scores = self.scoring(lst).reshape(batch_size, 1, l)
         oneMinusZ1 = torch.matmul(softmax_func(scores), lst)
         G_structure[:, 5] = torch.argmax(scores, dim=2).squeeze().tolist()  
+        margins.append(self.margin(scores))
 
         # (1-z)*h_tilde
         lst = torch.zeros([batch_size, l, self.hidden_size], device=x.device)
@@ -123,6 +124,7 @@ class RRNNforGRUCell(nn.Module):
         scores = self.scoring(lst).reshape(batch_size, 1, l)
         zh_tilde = torch.matmul(softmax_func(scores), lst)
         G_structure[:, 6] = torch.argmax(scores, dim=2).squeeze().tolist()  
+        margins.append(self.margin(scores))
         
         # z2*h
         lst = torch.zeros([batch_size, l, self.hidden_size], device=x.device)
@@ -131,6 +133,7 @@ class RRNNforGRUCell(nn.Module):
         scores = self.scoring(lst).reshape(batch_size, 1, l)
         z2h = torch.matmul(softmax_func(scores), lst)
         G_structure[:, 7] = torch.argmax(scores, dim=2).squeeze().tolist()
+        margins.append(self.margin(scores))
 
         # h_t
         lst = torch.zeros([batch_size, l, self.hidden_size], device=x.device)
@@ -139,6 +142,7 @@ class RRNNforGRUCell(nn.Module):
         scores = self.scoring(lst).reshape(batch_size, 1, l)
         h_next = torch.matmul(softmax_func(scores), lst)
         G_structure[:, 8] = torch.argmax(scores, dim=2).squeeze().tolist() 
+        margins.append(self.margin(scores))
 
 #        # set up nodes
 #        o = torch.zeros([batch_size, 1, self.hidden_size], device=x.device)
@@ -158,6 +162,7 @@ class RRNNforGRUCell(nn.Module):
 #            node.rightchild.parent = node
         
         G_node = torch.cat([z_1, r, z_2, rh, h_tilde, oneMinusZ1, zh_tilde, z2h, h_next], dim=2)
+        margins = torch.cat(margins, dim=1)
         # shape: batch_size * 1 * (nodes_num*hidden_size)
 
         return h_next, G_structure, G_node, margins
@@ -196,7 +201,7 @@ class RRNNforGRU(nn.Module):
         
         h_batch = torch.cat(h_list, dim=1)
         pred_chars_batch = torch.cat(pred_chars_list, dim=1)
-        margins_batch = []
+        margins_batch = torch.stack(margins_list, dim=1)
         return pred_chars_batch, h_batch, pred_tree_list, structures_list, margins_batch
     
 if __name__ == '__main__':

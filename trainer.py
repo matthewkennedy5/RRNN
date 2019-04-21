@@ -255,14 +255,13 @@ class RRNNTrainer:
         # calculate loss terms
         loss1 = 0
         if lamb1 != 0:
-            for i_time in range(y.shape[1]):
+            for i_time in range(time_steps):
                 loss1 += self.loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1))
 
         loss2 = 0
-#        # TODO
-#        if lamb2 != 0:
-#            desired_margin = params['loss2_margin']
-#            loss2 = 0
+        if lamb2 != 0:
+            desired_margin = params['loss2_margin']
+            loss2 = (desired_margin - margins_batch.clamp(max=desired_margin)).sum()/desired_margin
 
         loss3 = 0
         if lamb3 != 0:
@@ -281,7 +280,8 @@ class RRNNTrainer:
 
         losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
         accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*batch_size)
-
+        bpc1 = -np.log2(accuracy)
+        bpc2 = loss1.item()/(time_steps*np.log(2))
         loss_fn = sum(losses)
         loss_fn.backward()
         self.optimizer.step()
