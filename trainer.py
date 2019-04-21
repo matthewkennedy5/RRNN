@@ -287,60 +287,6 @@ class RRNNTrainer:
 
         return losses, accuracy.item(), structures_list
 
-
-    # def train_batch(self, X_batch, y_batch):
-    #      # zero gradients
-    #     self.optimizer.zero_grad()
-
-    #     batch_size = self.params['batch_size']
-    #     loss_hist = np.zeros((batch_size, 4))
-    #     loss_fn = 0
-    #     train_acc = 0
-    #     for i in range(X_batch.size()[0]):
-    #         x = X_batch[i, :, :].unsqueeze(0)
-    #         y = y_batch[i, :, :].unsqueeze(0)
-    #         loss, acc = self.train_step(x, y)
-    #         loss_fn += sum(loss)
-    #         train_acc += acc
-    #         # TODO: Clean this up
-    #         for l in range(4):
-    #             try:
-    #                 loss_hist[i, l] = loss[l].item()
-    #             except AttributeError:
-    #                 loss_hist[i, l] = loss[l]
-
-    #     # Average out the loss
-    #     loss_hist = np.mean(loss_hist, axis=0)
-    #     loss_fn /= X_batch.shape[0]
-    #     train_acc /= X_batch.shape[0]  # Training accuracy is per batch -- very noisy
-
-    #     loss_fn.backward()
-
-    #     # for name, p in self.model.named_parameters():
-    #     #     if p.grad is not None:
-    #     #         print(name, p.grad.norm().item())
-    #     #     else:
-    #     #         print(name)
-
-    #     if self.params['max_grad'] is not None:
-    #         torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.params['max_grad'])
-
-    #     self.optimizer.step()
-    #     self.iter_count += 1
-
-    #     # Save out the loss as we train because multiprocessing is weird with
-    #     # instance variables
-    #     train_loss = (loss_hist[0].item(), loss_hist[1].item(), loss_hist[2], loss_hist[3])
-    #     with open(TRAIN_LOSS_FILE, 'a') as f:
-    #         f.write('%f %f %f %f\n' % train_loss)
-    #     f.close()
-    #     print(loss_fn.item(), flush=True)
-
-    #     with open(TRAIN_ACC_FILE, 'a') as f:
-    #         f.write('%f\n' % train_acc)
-    #     f.close()
-
-
     def validate(self, verbose=True):
         """Runs inference over the validation set periodically during training.
 
@@ -379,9 +325,6 @@ def run(params):
     pickle.dump(params, open(HYPERPARAM_FILE, 'wb'))
     print('[INFO] Saved hyperparameters.')
 
-    if params['debug']:
-        print('[INFO] Running in debug mode. Multiprocessing is deactivated.')
-
     start = time.time()
     gru_model = torch.load('../gru_parameters.pkl')
 
@@ -406,6 +349,7 @@ def run(params):
 
     # Warm-start with pretrained GRU weights
     if params['pretrained_weights']:
+        print('[INFO] Loading pre-trained GRU weights.')
         model.cell.L_list[1] = nn.Parameter(L1)
         model.cell.L_list[2] = nn.Parameter(L2)
         model.cell.L_list[3] = nn.Parameter(L3)
@@ -425,7 +369,6 @@ def run(params):
     gru_model.share_memory()
 
 
-    filename = os.path.join('..', params['data_file'])  # Since we're in the output dir
     print('[INFO] Loading training data into memory.')
     # TODO: Include other datasets
     train_set = standard_data.EnWik8Clean(subset='train', n_data=params['nb_train'])
@@ -459,68 +402,3 @@ if __name__ == '__main__':
 
     run(params)
 
-
-#     params = {
-#         'learning_rate': 1e-4,
-#         'multiplier': 1,
-#         'lambdas': (1, 1, 1, 1),
-#         'nb_train': 1000,   # Only meaningful if it's less than the training set size
-#         'nb_val': 0,
-#         'validate_every': 1000,  # How often to evaluate the validation set (iterations)
-#         'epochs': 100,
-#         'n_processes': mp.cpu_count(),
-#         'loss2_margin': 1,
-#         'scoring_hidden_size': 64,     # Set to None for no hidden layer
-#         'batch_size': 64,
-#         'verbose': True,
-#         'epochs_per_checkpoint': 1,
-#         'optimizer': 'adam',
-#         'debug': False,  # Turns multiprocessing off so pdb works
-#         'data_file': 'enwik8_clean.txt',
-#         'embeddings': 'gensim',
-#         'max_grad': 1,  # Max norm of gradients. Set to None for no clipping
-#         'initial_train_mode': 'weights',
-#         'alternate_every': 1,    # Switch training mode after this many epochs
-#         'warm_start': False,
-#         'weights_file': 'epoch_0.pt',
-#         'pretrained_weights': True  # Whether to train from GRU weights
-#     }
-
-#     # the minimum set of parameters needed to run trainer.train_step_cuda
-#     params = {
-#         'learning_rate': 1e-4,
-#         'lambdas': (1, 1, 1, 1),
-#         'loss2_margin': 1,
-#         'scoring_hidden_size': 64,     # Set to None for no hidden layer
-#         'batch_size': 64,
-#         'optimizer': 'adam',
-#         'initial_train_mode': 'weights',
-#         'cuda': True}
-
-#     # test case for trainer.train_step_cuda
-#     gru_model = torch.load('./gru_parameters.pkl')
-#     model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, batch_size=params['batch_size'], scoring_hsize=params['scoring_hidden_size'])
-#     data = standard_data.load_standard_data()
-#     (X_train, y_train), (X_val, y_val), (X_test, y_test) = data
-
-#     if params['cuda']:
-#         gru_model = gru_model.cuda()
-#         model = model.cuda()
-#         X_train = X_train.cuda()
-#         y_train = y_train.cuda()
-
-#     X = X_train[:params['batch_size'], :, :]
-#     y = y_train[:params['batch_size'], :, :]
-#     trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, params)
-
-#     losses, acc = trainer.train_step_cuda(X, y)
-
-
-# #    if len(sys.argv) != 2:
-# #        raise Exception('Usage: python trainer.py <output_dir>')
-# #    dirname = sys.argv[1]
-# #    if not params['warm_start']:
-# #        os.mkdir(dirname)
-# #    os.chdir(dirname)
-# #
-# #    run(params)
