@@ -180,9 +180,10 @@ class EnWik8Clean(data.Dataset):
         subset - either 'train', 'val', or 'test'.
         n_data - How many data points to sample (with a maximum determined by
             the size of the data in the pickle file.)
+        device
     """
 
-    def __init__(self, subset, n_data):
+    def __init__(self, subset, n_data, device):
         train, val, test = load_standard_data()
         if subset == 'train':
             self.X, self.y = train
@@ -193,8 +194,8 @@ class EnWik8Clean(data.Dataset):
         else:
             raise ValueError('Subset input must be "train", "val", or "test"')
 
-        self.X = self.X[:n_data]
-        self.y = self.y[:n_data]
+        self.X = self.X[:n_data].to(device)
+        self.y = self.y[:n_data].to(device)
 
     def __len__(self):
         return self.X.shape[0]

@@ -2,10 +2,10 @@
         "learning_rate": 1e-4,
         "multiplier": 1,
         "lambdas": [1, 0, 1e-8, 0.003],
-        "nb_train": 10000,
-        "nb_val": 0,
+        "nb_train": 100,
+        "nb_val": 10,
         "validate_every": 1,
-        "epochs": 100,
+        "epochs": 2,
         "loss2_margin": 1,
         "scoring_hidden_size": 64,
         "batch_size": 64,
@@ -17,5 +17,6 @@
         "alternate_every": 1,
         "warm_start": false,
         "weights_file": "epoch_0.pt",
-        "pretrained_weights": false
+        "pretrained_weights": false,
+        "device": "cpu"
 }

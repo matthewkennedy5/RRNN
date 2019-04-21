@@ -22,7 +22,6 @@ import standard_data
 
 VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
-device = torch.device('cpu')
 TRAIN_LOSS_FILE = 'loss.txt'
 TRAIN_ACC_FILE = 'train_acc.txt'
 VAL_LOSS_FILE = 'val_loss.txt'
@@ -120,6 +119,7 @@ class RRNNTrainer:
                 all timesteps).
         """
         self.model.train()
+        self.gru_model.train()
         n_iters = n_epochs * len(self.train_data)
         loss_history = []
         acc_history = []
@@ -275,7 +275,8 @@ def run(params):
     print('[INFO] Saved hyperparameters.')
 
     start = time.time()
-    gru_model = torch.load('../gru_parameters.pkl')
+    device = torch.device(params['device'])
+    gru_model = torch.load('../gru_parameters.pkl').to(device)
 
     # Extract GRU pre-trained weights
     W_ir, W_iz, W_in = gru_model.weight_ih_l0.chunk(3)
@@ -294,7 +295,7 @@ def run(params):
     b3 = b_in #+ r*b_hn
 
     model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, batch_size=params['batch_size'],
-                       scoring_hsize=params['scoring_hidden_size'])
+                       scoring_hsize=params['scoring_hidden_size']).to(device)
 
     # Warm-start with pretrained GRU weights
     if params['pretrained_weights']:
@@ -314,14 +315,10 @@ def run(params):
         print('[INFO] Warm starting from ' + weights + '.')
         model.load_state_dict(torch.load(weights))
 
-    model.share_memory()
-    gru_model.share_memory()
-
-
     print('[INFO] Loading training data into memory.')
     # TODO: Include other datasets
-    train_set = standard_data.EnWik8Clean(subset='train', n_data=params['nb_train'])
-    validation_set = standard_data.EnWik8Clean(subset='val', n_data=params['nb_val'])
+    train_set = standard_data.EnWik8Clean(subset='train', n_data=params['nb_train'], device=device)
+    validation_set = standard_data.EnWik8Clean(subset='val', n_data=params['nb_val'], device=device)
     train_dataloader = DataLoader(train_set, batch_size=params['batch_size'], shuffle=True)
     val_dataloader = DataLoader(validation_set, batch_size=params['nb_val'], shuffle=False)
     print('[INFO] Beginning training with %d training samples and %d '
