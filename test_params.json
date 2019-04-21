@@ -1,15 +1,15 @@
 {
         "learning_rate": 1e-4,
         "multiplier": 1,
-        "lambdas": [1, 0, 0, 0],
-        "nb_train": 1,
+        "lambdas": [1, 1, 1, 1],
+        "nb_train": 100,
         "nb_val": 0,
-        "validate_every": 1000,
-        "epochs": 100,
+        "validate_every": 1,
+        "epochs": 2,
         "n_processes": 24,
         "loss2_margin": 1,
         "scoring_hidden_size": 64,
-        "batch_size": 1,
+        "batch_size": 5,
         "verbose": true,
         "epochs_per_checkpoint": 1,
         "optimizer": "adam",
@@ -21,5 +21,5 @@
         "alternate_every": 1,
         "warm_start": false,
         "weights_file": "epoch_0.pt",
-        "pretrained_weights": true
+        "pretrained_weights": false
 }
