@@ -329,7 +329,7 @@ def run(params):
     trainer = RRNNTrainer(model, gru_model, train_dataloader, val_dataloader, params)
     loss_history, acc_history, structure_history = trainer.train(params['epochs'])
     pickle.dump(loss_history, open('loss_history.pkl', 'wb'))
-    pickle.dump(acc_history, open('loss_history.pkl', 'wb'))
+    pickle.dump(acc_history, open('acc_history.pkl', 'wb'))
     pickle.dump(structure_history, open('structure_history.pkl', 'wb'))
     print()
     print('[INFO] Saved loss, accuracy, and structure history.')
