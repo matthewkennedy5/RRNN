@@ -102,7 +102,7 @@ class RRNNTrainer:
     def checkpoint_model(self):
         save_name = 'checkpoint_' + str(time.time()) + '.pt'
         torch.save(self.model.state_dict(), save_name)
-        print('[INFO] Checkpoint the model.')
+        print('[INFO] Checkpointed the model.')
 
     def train(self, n_epochs):
         """Trains the RRNN for the given number of epochs.
@@ -128,7 +128,12 @@ class RRNNTrainer:
             print('\n[INFO] Epoch %d/%d' % (e, n_epochs))
             with tqdm(self.train_data) as t:
                 for X_batch, y_batch in self.train_data:
+                    self.optimizer.zero_grad()
                     losses, acc, structures = self.train_step_cuda(X_batch, y_batch)
+                    loss_fn = sum(losses)
+                    loss_fn.backward()
+                    self.optimizer.step()
+
                     loss_history.append(losses)
                     acc_history.append(acc)
                     structure_history.append(structures)
@@ -139,8 +144,6 @@ class RRNNTrainer:
                         except AttributeError:
                             losses[i] = l
                         losses[i] = round(losses[i], 4)
-                    # t.set_postfix(loss1=losses[0], loss2=losses[1],
-                    #               loss3=losses[2], loss4=losses[3], acc=acc)
                     t.set_postfix(loss=losses)
                     t.update()
 
@@ -148,69 +151,17 @@ class RRNNTrainer:
                 if len(self.val_data) > 0:
                     self.validate()
 
-            if e % self.params['alternate_every'] == 0:
-                self.switch_train_mode()
-
             if e % self.params['epochs_per_checkpoint'] == 0:
                 self.checkpoint_model()
+
+            if e % self.params['alternate_every'] == 0:
+                self.switch_train_mode()
 
         self.model.eval()
         return loss_history, acc_history, structure_history
 
-    # def train(self, epochs, n_processes=1):
-    #     """Trains the RRNN for the given number of epochs.
-
-    #     Inputs:
-    #         epochs - Number of epochs (full passes over the training data) to train
-    #             for
-
-    #     Returns:
-    #         loss_history - numpy array containing the loss at each training iteration.
-    #         structure - The final structure of the RRNN tree.
-    #     """
-    #     N = len(self.X_train)
-    #     iterations = epochs * N
-    #     val_counter = 0     # Variable to help us keep track of when it's time to validate
-    #     # set to training mode
-    #     self.model.train()
-
-    #         if epoch == 0:
-    #             self.freeze_params()
-    #         elif epoch % self.params['alternate_every'] == 0:
-    #             self.switch_train_mode()
-
-    #         if self.params['verbose']:
-    #             print('\n\nEpoch ' + str(epoch + 1))
-
-    #         # Checkpoint the model
-    #         if epoch % self.params['epochs_per_checkpoint'] == 0:
-    #             save_name = 'checkpoint_' + str(time.time()) + '.pt'
-    #             torch.save(self.model.state_dict(), save_name)
-
-    #     for X_batches, y_batches in self.batch_generator():
-    #         processes = []
-    #         for i in range(len(X_batches)):
-    #             X_batch = X_batches[i]
-    #             y_batch = y_batches[i]
-
-    #             if self.params['debug']:
-    #                 self.train_batch(X_batch, y_batch)
-    #             else:
-    #                 p = mp.Process(target=self.train_batch, args=(X_batch, y_batch))
-    #                 p.start()
-    #                 processes.append(p)
-    #         for p in processes:
-    #             p.join()
-
-    #         # Record the validation loss and accuracy
-    #         if len(self.X_val) > 0 and self.iter_count / self.params['validate_every'] >= val_counter:
-    #             self.validate()
-    #             val_counter += 1
-
-    #     self.model.eval()
-
     def train_step_cuda(self, X, y):
-        """Trains the RRNN for the given batch of data points.
+        """Calculates loss and accuracy for the given batch of data points.
 
         Inputs:
             X: Tensor of shape (batch_size, time_steps, hidden_size)
@@ -234,7 +185,6 @@ class RRNNTrainer:
         batch_size, time_steps, hidden_size = X.shape
 
         # forward pass
-        self.optimizer.zero_grad()
         pred_chars_batch, h_batch, pred_tree_list, structures_list, margins_batch = self.model(X)
 
         # forward pass of ground-truth GRU
@@ -284,9 +234,6 @@ class RRNNTrainer:
         accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*batch_size)
         bpc1 = -np.log2(accuracy)
         bpc2 = loss1.item()/(time_steps*np.log(2))
-        loss_fn = sum(losses)
-        loss_fn.backward()
-        self.optimizer.step()
 
         return losses, accuracy, structures_list
 
@@ -297,27 +244,15 @@ class RRNNTrainer:
         """
         print('[INFO] Beginning validation.')
         with torch.no_grad():
-            n_val = len(self.X_val)
-            pool = mp.Pool(self.params['n_processes'])
-            inputs = []
-            for i in range(n_val):
-                x = self.X_val[i, :, :].unsqueeze(0)
-                y = self.y_val[i, :, :].unsqueeze(0)
-                inputs.append((x, y))
-            results = pool.starmap(self.train_step, inputs)
-            val_losses, val_accuracies = zip(*results)
-            val_losses = torch.tensor(val_losses)
-            val_accuracies = torch.tensor(val_accuracies)
-            val_loss = torch.mean(val_losses, dim=0)
-            val_acc = torch.mean(val_accuracies)
-            val_loss = tuple(val_loss)
+            X_val, y_val = next(iter(self.val_data))
+            losses, accuracy, _ = self.train_step_cuda(X_val, y_val)
 
         print('[INFO] Validation complete.')
         with open(VAL_LOSS_FILE, 'a') as f:
-            f.write('%d %f %f %f %f\n' % ((self.iter_count.item(),) + val_loss))
+            f.write('%f %f %f %f\n' % tuple(losses))
         f.close()
         with open(VAL_ACC_FILE, 'a') as f:
-            f.write('%d %f\n' % (self.iter_count.item(), val_acc))
+            f.write('%f\n' % (accuracy,))
         f.close()
 
 
@@ -377,7 +312,7 @@ def run(params):
     train_set = standard_data.EnWik8Clean(subset='train', n_data=params['nb_train'])
     validation_set = standard_data.EnWik8Clean(subset='val', n_data=params['nb_val'])
     train_dataloader = DataLoader(train_set, batch_size=params['batch_size'], shuffle=True)
-    val_dataloader = DataLoader(validation_set, batch_size=params['batch_size'], shuffle=False)
+    val_dataloader = DataLoader(validation_set, batch_size=params['nb_val'], shuffle=False)
     print('[INFO] Beginning training with %d training samples and %d '
           'validation samples.' % (len(train_set), len(validation_set)))
 
