@@ -134,16 +134,11 @@ class RRNNTrainer:
                     loss_fn.backward()
                     self.optimizer.step()
 
+                    losses = printable(losses)
                     loss_history.append(losses)
                     acc_history.append(acc)
                     structure_history.append(structures)
-                    # Prepare losses for display
-                    for i, l in enumerate(losses):
-                        try:
-                            losses[i] = l.item()
-                        except AttributeError:
-                            losses[i] = l
-                        losses[i] = round(losses[i], 4)
+
                     t.set_postfix(loss=losses)
                     t.update()
 
@@ -172,16 +167,11 @@ class RRNNTrainer:
             accuracy
 
         Requires:
-            self.batch_size (hard-coded below, replace later) = 64
-            self.time_steps (hard-coded below, replace later) = 20
-            self.hidden_size (hard-coded below, replace later) = 100
             self.model = RRNNforGRU
             self.gru_model
             self.params
             self.loss = torch.nn.CrossEntropyLoss()
-
         """
-        # should be replaced by self.xxx later
         batch_size, time_steps, hidden_size = X.shape
 
         # forward pass
@@ -242,12 +232,11 @@ class RRNNTrainer:
 
         Prints the validation loss and accuracy to their respective files.
         """
-        print('[INFO] Beginning validation.')
         with torch.no_grad():
             X_val, y_val = next(iter(self.val_data))
             losses, accuracy, _ = self.train_step_cuda(X_val, y_val)
 
-        print('[INFO] Validation complete.')
+        print('val_loss:', printable(losses), 'val_acc:', accuracy)
         with open(VAL_LOSS_FILE, 'a') as f:
             f.write('%f %f %f %f\n' % tuple(losses))
         f.close()
@@ -256,7 +245,29 @@ class RRNNTrainer:
         f.close()
 
 
-# Perform a training run using the given hyperparameters. Saves out data and model checkpoints
+def printable(x):
+    """Converts a tuple or list containing tensors and numbers to just numbers.
+
+    Also rounds the numbers to 4 decimal places.
+
+    Input:
+        input - A list or tuple containing tensors and/or numbers.
+
+    Returns:
+        result - A tuple with .item() called on the tensors.
+    """
+    result = list(x)
+    for i, l in enumerate(x):
+        try:
+            result[i] = l.item()
+        except AttributeError:
+            result[i] = l
+        result[i] = round(result[i], 4)
+
+    return result
+
+
+# Performs a training run using the given hyperparameters. Saves out data and model checkpoints
 # into the current directory.
 def run(params):
     # Assuming we are already in the directory where the output files should be
@@ -317,11 +328,16 @@ def run(params):
           'validation samples.' % (len(train_set), len(validation_set)))
 
     trainer = RRNNTrainer(model, gru_model, train_dataloader, val_dataloader, params)
-    trainer.train(params['epochs'])
+    loss_history, acc_history, structure_history = trainer.train(params['epochs'])
+    pickle.dump(loss_history, open('loss_history.pkl', 'wb'))
+    pickle.dump(acc_history, open('loss_history.pkl', 'wb'))
+    pickle.dump(structure_history, open('structure_history.pkl', 'wb'))
+    print()
+    print('[INFO] Saved loss, accuracy, and structure history.')
 
     runtime = time.time() - start
     pickle.dump(runtime, open(RUNTIME_FILE, 'wb'))
-    print('\n[INFO] Run complete. Runtime:', datetime.timedelta(seconds=runtime))
+    print('[INFO] Run complete. Runtime:', datetime.timedelta(seconds=runtime))
 
     torch.save(model.state_dict(), 'final_weights.pt')
 
