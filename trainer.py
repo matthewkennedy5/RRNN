@@ -132,11 +132,13 @@ class RRNNTrainer:
                     loss_history.append(losses)
                     acc_history.append(acc)
                     structure_history.append(structures)
+                    # Prepare losses for display
                     for i, l in enumerate(losses):
                         try:
                             losses[i] = l.item()
                         except AttributeError:
                             losses[i] = l
+                        losses[i] = round(losses[i], 4)
                     # t.set_postfix(loss1=losses[0], loss2=losses[1],
                     #               loss3=losses[2], loss4=losses[3], acc=acc)
                     t.set_postfix(loss=losses)
