@@ -137,8 +137,9 @@ class RRNNTrainer:
                             losses[i] = l.item()
                         except AttributeError:
                             losses[i] = l
-                    t.set_postfix(loss1=losses[0], loss2=losses[1],
-                                  loss3=losses[2], loss4=losses[3], acc=acc)
+                    # t.set_postfix(loss1=losses[0], loss2=losses[1],
+                    #               loss3=losses[2], loss4=losses[3], acc=acc)
+                    t.set_postfix(loss=losses)
                     t.update()
 
             if e % self.params['validate_every'] == 0:
@@ -279,13 +280,13 @@ class RRNNTrainer:
 #                                            target_tree_list[i_time_step])
 
         losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
-        accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum()/(time_steps*batch_size)
+        accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*batch_size)
 
         loss_fn = sum(losses)
         loss_fn.backward()
         self.optimizer.step()
 
-        return losses, accuracy.item(), structures_list
+        return losses, accuracy, structures_list
 
     def validate(self, verbose=True):
         """Runs inference over the validation set periodically during training.
