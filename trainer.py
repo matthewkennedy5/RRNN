@@ -254,15 +254,14 @@ class RRNNTrainer:
         # calculate loss terms
         loss1 = 0
         if lamb1 != 0:
-            for i_time in range(y.shape[1]):
+            for i_time in range(time_steps):
                 loss1 += self.loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1))
 
         loss2 = 0
-#        # TODO
-#        if lamb2 != 0:
-#            desired_margin = params['loss2_margin']
-#            loss2 = 0
-
+        if lamb2 != 0:
+            desired_margin = params['loss2_margin']
+            loss2 = (desired_margin - margins_batch.clamp(max=desired_margin)).sum()/desired_margin
+            
         loss3 = 0
         if lamb3 != 0:
             for param in self.model.parameters():
@@ -280,7 +279,9 @@ class RRNNTrainer:
 
         losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
         accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum()/(time_steps*batch_size)
-
+        bpc1 = -np.log2(accuracy)
+        bpc2 = loss1.item()/(20*np.log(2))
+        
         loss_fn = sum(losses)
         loss_fn.backward()
         self.optimizer.step()
@@ -459,68 +460,3 @@ if __name__ == '__main__':
 
     run(params)
 
-
-#     params = {
-#         'learning_rate': 1e-4,
-#         'multiplier': 1,
-#         'lambdas': (1, 1, 1, 1),
-#         'nb_train': 1000,   # Only meaningful if it's less than the training set size
-#         'nb_val': 0,
-#         'validate_every': 1000,  # How often to evaluate the validation set (iterations)
-#         'epochs': 100,
-#         'n_processes': mp.cpu_count(),
-#         'loss2_margin': 1,
-#         'scoring_hidden_size': 64,     # Set to None for no hidden layer
-#         'batch_size': 64,
-#         'verbose': True,
-#         'epochs_per_checkpoint': 1,
-#         'optimizer': 'adam',
-#         'debug': False,  # Turns multiprocessing off so pdb works
-#         'data_file': 'enwik8_clean.txt',
-#         'embeddings': 'gensim',
-#         'max_grad': 1,  # Max norm of gradients. Set to None for no clipping
-#         'initial_train_mode': 'weights',
-#         'alternate_every': 1,    # Switch training mode after this many epochs
-#         'warm_start': False,
-#         'weights_file': 'epoch_0.pt',
-#         'pretrained_weights': True  # Whether to train from GRU weights
-#     }
-
-#     # the minimum set of parameters needed to run trainer.train_step_cuda
-#     params = {
-#         'learning_rate': 1e-4,
-#         'lambdas': (1, 1, 1, 1),
-#         'loss2_margin': 1,
-#         'scoring_hidden_size': 64,     # Set to None for no hidden layer
-#         'batch_size': 64,
-#         'optimizer': 'adam',
-#         'initial_train_mode': 'weights',
-#         'cuda': True}
-
-#     # test case for trainer.train_step_cuda
-#     gru_model = torch.load('./gru_parameters.pkl')
-#     model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, batch_size=params['batch_size'], scoring_hsize=params['scoring_hidden_size'])
-#     data = standard_data.load_standard_data()
-#     (X_train, y_train), (X_val, y_val), (X_test, y_test) = data
-
-#     if params['cuda']:
-#         gru_model = gru_model.cuda()
-#         model = model.cuda()
-#         X_train = X_train.cuda()
-#         y_train = y_train.cuda()
-
-#     X = X_train[:params['batch_size'], :, :]
-#     y = y_train[:params['batch_size'], :, :]
-#     trainer = RRNNTrainer(model, gru_model, X_train, y_train, X_val, y_val, params)
-
-#     losses, acc = trainer.train_step_cuda(X, y)
-
-
-# #    if len(sys.argv) != 2:
-# #        raise Exception('Usage: python trainer.py <output_dir>')
-# #    dirname = sys.argv[1]
-# #    if not params['warm_start']:
-# #        os.mkdir(dirname)
-# #    os.chdir(dirname)
-# #
-# #    run(params)
