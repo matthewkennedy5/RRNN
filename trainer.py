@@ -1,20 +1,17 @@
-import os
-import sys
+import os, sys, platform
 import time
 import datetime
-import random
 import torch
 from torch import nn
 import numpy as np
 from torch.utils.data import DataLoader
 import time
 import json
-import datetime
+
 
 # import tree_methods_parallel as tree_methods
 import tree_methods
 from GRU import RRNNforGRU
-from structure_utils import structures_are_equal, GRU_STRUCTURE
 import pickle
 import pdb
 from tqdm import tqdm
@@ -341,16 +338,48 @@ def run(params):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        raise Exception('Usage: python trainer.py <output_dir> <JSON parameter file>')
-    dirname = sys.argv[1]
-    param_file = sys.argv[2]
-    with open(param_file, 'r') as f:
-        params = json.load(f)
 
-    if not params['warm_start']:
-        os.mkdir(dirname)
-    os.chdir(dirname)
 
-    run(params)
+    if platform.system() == 'Windows':
+        dirname = 'test %s'%(time.asctime().replace(':', '_'))
+        params = {
+            "learning_rate": 1e-4,
+            "multiplier": 1,
+            "lambdas": [1, 0, 1e-8, 0.003],
+            "nb_train": 1000,
+            "nb_val": 200,
+            "validate_every": 1,
+            "epochs": 20,
+            "loss2_margin": 1,
+            "scoring_hidden_size": 64,
+            "batch_size": 64,
+            "epochs_per_checkpoint": 1,
+            "optimizer": "adam",
+            "embeddings": "gensim",
+            "max_grad": 1,
+            "initial_train_mode": "weights",
+            "alternate_every": 1,
+            "warm_start": False,
+            "weights_file": "epoch_0.pt",
+            "pretrained_weights": False,
+            "device": "cpu"
+        }
+        if not params['warm_start']:
+            os.mkdir(dirname)
+        os.chdir(dirname)
+
+        run(params)
+
+    else: # elif platform.system() == '' # on server 
+        if len(sys.argv) != 3:
+            raise Exception('Usage: python trainer.py <output_dir> <JSON parameter file>')
+        dirname = sys.argv[1]
+        param_file = sys.argv[2]
+        with open(param_file, 'r') as f:
+            params = json.load(f)
+    
+        if not params['warm_start']:
+            os.mkdir(dirname)
+        os.chdir(dirname)
+        run(params)
 
