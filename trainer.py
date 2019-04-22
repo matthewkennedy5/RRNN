@@ -57,7 +57,6 @@ class RRNNTrainer:
         self.loss = torch.nn.CrossEntropyLoss()
         # TODO: Change this variable name--it's not a true iteration count. It
         # increments multiple times per batch.
-        self.iter_count = torch.zeros(1, dtype=torch.int32).share_memory_()
         self.train_mode = params['initial_train_mode']
 
     def switch_train_mode(self):
@@ -120,7 +119,7 @@ class RRNNTrainer:
         """
         self.model.train()
         self.gru_model.train()
-        n_iters = n_epochs * len(self.train_data)
+
         loss_history = []
         acc_history = []
         structure_history = []

@@ -132,10 +132,10 @@ for i_epoch in range(n_epoch):
         
         # calculate loss terms
         loss1 = 0
-        if lamb1 != 0:It 
+        if lamb1 != 0:
             for i_time in range(y.shape[1]):
                 loss1 += loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1))
-        
+
         loss2 = 0
         if lamb2 != 0:
             desired_margin = params['loss2_margin']
