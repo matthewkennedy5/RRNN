@@ -143,6 +143,12 @@ class RRNNTrainer:
             if e % self.params['epochs_per_checkpoint'] == 0:
                 self.checkpoint_model()
 
+            if e % self.params['pickle_every'] == 0:
+                pickle.dump(loss_history, open('loss_history.pkl', 'wb'))
+                pickle.dump(acc_history, open('acc_history.pkl', 'wb'))
+                pickle.dump(structure_history, open('structure_history.pkl', 'wb'))
+                print('[INFO] Saved loss, accuracy, and structure history.')
+
             if e % self.params['alternate_every'] == 0:
                 self.switch_train_mode()
 
@@ -368,14 +374,14 @@ if __name__ == '__main__':
 
         run(params)
 
-    else: # elif platform.system() == '' # on server 
+    else: # elif platform.system() == '' # on server
         if len(sys.argv) != 3:
             raise Exception('Usage: python trainer.py <output_dir> <JSON parameter file>')
         dirname = sys.argv[1]
         param_file = sys.argv[2]
         with open(param_file, 'r') as f:
             params = json.load(f)
-    
+
         if not params['warm_start']:
             os.mkdir(dirname)
         os.chdir(dirname)
