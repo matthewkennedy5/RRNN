@@ -8,8 +8,6 @@ from torch.utils.data import DataLoader
 import time
 import json
 
-
-# import tree_methods_parallel as tree_methods
 import tree_methods
 from GRU import RRNNforGRU
 import pickle
