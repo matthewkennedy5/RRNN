@@ -39,13 +39,14 @@ def random_params():
     learning_rate = 10 ** np.random.uniform(-4, -1)
     epochs = 20
     batch_size = int(2 ** np.random.uniform(3, 5))
+    hidden_size = int(2 ** np.random.uniform(3, 11))
     params = {'reg': reg, 'learning rate': learning_rate, 'epochs': epochs,
-              'batch size': batch_size}
+              'batch size': batch_size, 'hidden_size': hidden_size}
     return params
 
 def run(params):
     model = Sequential([
-                GRU(HIDDEN_SIZE, return_sequences=True,
+                GRU(params['hidden_size'], return_sequences=True,
                     input_shape=(CHUNK_LENGTH, X_train.shape[2]),
                     kernel_regularizer=l2(params['reg']),
                     recurrent_regularizer=l2(params['reg'])),
@@ -126,15 +127,18 @@ def plot_bpc(history):
 
 if __name__=='__main__':
 
-    params = {'batch size': 10,
-              'epochs': 40,
-              'learning rate': 0.0005193665291051191,
-              'reg': 7.017320195906407e-07}
+    # params = {
+    #     'batch size': 10,
+    #     'epochs': 40,
+    #     'learning rate': 0.0005193665291051191,
+    #     'reg': 7.017320195906407e-07,
+    #     'hidden_size': 50
+    #  }
 
-    history = run(params)
+    # history = run(params)
     # plot_results(history)
     # plot_bpc(history)
-    # random_hyperparam_search(100)
+    random_hyperparam_search(100)
 
 
 
