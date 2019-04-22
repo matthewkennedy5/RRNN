@@ -92,8 +92,8 @@ class RRNNTrainer:
             else:
                 param.requires_grad = True
 
-    def checkpoint_model(self):
-        save_name = 'checkpoint_' + str(time.time()) + '.pt'
+    def checkpoint_model(self, epoch):
+        save_name = 'checkpoint_' + str(epoch) + '_' + str(time.time()) + '.pt'
         torch.save(self.model.state_dict(), save_name)
         print('[INFO] Checkpointed the model.')
 
@@ -119,7 +119,7 @@ class RRNNTrainer:
         acc_history = []
         structure_history = []
         for e in range(n_epochs):
-            print('\n[INFO] Epoch %d/%d' % (e, n_epochs))
+            print('\n[INFO] Epoch %d/%d' % (e+1, n_epochs))
             with tqdm(self.train_data) as t:
                 for X_batch, y_batch in self.train_data:
                     self.optimizer.zero_grad()
