@@ -10,6 +10,7 @@
         "scoring_hidden_size": 64,
         "batch_size": 64,
         "epochs_per_checkpoint": 1,
+        "pickle_every": 1,
         "optimizer": "adam",
         "embeddings": "gensim",
         "max_grad": 1,
