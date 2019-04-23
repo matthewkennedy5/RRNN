@@ -15,12 +15,36 @@ import pdb
 from tree_methods import Node
 
 
+def retrieve_binary_operation(s):
+    if s == 'add':
+        binary = lambda x,y: x+y
+    elif s == 'mul':
+        binary = lambda x,y: x*y
+    else:
+        raise ValueError('No such binary function %s!'%s)
+    return binary
+
+def retrieve_unary_operation(s):
+    if s == 'sigmoid':
+        unary = lambda x: torch.sigmoid(x)
+    elif s == 'tanh':
+        unary = lambda x: torch.tanh(x)
+    elif s == 'minus':
+        unary = lambda x: 1-x
+    elif s == 'identity':
+        unary = lambda x: x    
+    else:
+        raise ValueError('No such unary function %s!'%s)
+    return unary
+
+
 class RRNNforGRUCell(nn.Module):
     def __init__(self, hidden_size, scoring_hsize=None):
         super(RRNNforGRUCell, self).__init__()
 
         self.hidden_size = hidden_size
-        self.binary_ops_list = ['mul', 'add']
+        self.binary_ops_list = ['add', 'mul']
+        self.unary_ops_list = ['sigmoid', 'tanh', 'minus', 'identity', 'relu']
         self.m = 1  # Num of output vectors
         self.N = 9  # Num of generated nodes in one cell
         self.l = 4  # Num of parameter matrices (L_i, R_i, b_i)
@@ -59,17 +83,85 @@ class RRNNforGRUCell(nn.Module):
         else:
             self.scoring = nn.Linear(hidden_size, 1, bias=False)
 
-
-    def margin(self, scores):
-        """Returns a Tensor of the difference between the top two scores.
-
-        Input:
-            scores - Tensor of output from the scoring net. Must contain at
-                least two elements.
-        """
-        sorted_scores = torch.sort(scores)[0]
-        return sorted_scores[:, :, -1] - sorted_scores[:, :, -2]
-
+    def forward_stage_search(self, x, h_prev):
+        batch_size, _, hidden_size = x.shape
+        o = torch.zeros_like(x, device=x.shape)
+        l = self.l
+        softmax_func = torch.nn.Softmax(dim=2)
+        
+        G = []
+        G_structure = []
+        G_structure_second = []
+        components_list = []
+        
+        for r in range(self.N):
+            candidate = [x, h_prev, o] + [comp.vector for comp in components_list]
+            L_times_left_child = [[torch.matmul(candidate[i], self.L_list[k]) for i in range(len(candidate))] for k in range(l)]
+            R_times_left_child = [[torch.matmul(candidate[j], self.R_list[k]) for j in range(len(candidate))] for k in range(l)]
+            V = []
+            V_structure = []
+                        
+            for i in range(len(candidate)-1):
+                for j in range(i, len(candidate)):
+                    flag = 0
+                    if (self.N - r) == len(components_list) - 1: # You could only merge two components
+                        if i >= 3:
+                            flag = 1
+                    elif (self.N - r) == len(components_list): # could merge or keep # components to be the same
+                        if j >= 3:
+                            flag = 1
+                    elif (self.N - r) > len(components_list):  # whatever you want
+                        flag = 1
+                    else:
+                        raise ValueError
+                    
+                    if flag == 1:
+                        if r == 0:
+                            available_LR_index = [0]
+                        elif r == 1:
+                            available_LR_index = [1]
+                        else:
+                            available_LR_index = list(range(l))
+                        
+                        for k in available_LR_index:
+                            b = self.b_list[k]
+                            for binary_func in self.binary_ops_list:
+                                if binary_func == 'add':
+                                    res = L_times_left_child[i][k] + R_times_left_child[j][k] + b
+                                else:   # elif binary_func == 'mul':
+                                    res = L_times_left_child[i][k] * R_times_left_child[j][k] + b
+                                if res.abs().max() > 1:
+                                    V.append(torch.sigmoid(res))
+                                    V_structure.append([i, j, k, binary_func, 'sigmoid'])
+                                    V.append(torch.tanh(res))
+                                    V_structure.append([i, j, k, binary_func, 'tanh'])                                    
+                                else:
+                                    V.append(torch.sigmoid(res))
+                                    V_structure.append([i, j, k, binary_func, 'sigmoid'])
+                                    V.append(torch.tanh(res))
+                                    V_structure.append([i, j, k, binary_func, 'tanh'])
+                                    V.append(1-res)
+                                    V_structure.append([i, j, k, binary_func, 'minus'])
+                                    V.append(res)
+                                    V_structure.append([i, j, k, binary_func, 'identity'])
+                                    V.append(torch.relu(res))
+                                    V_structure.append([i, j, k, binary_func, 'relu'])                   
+            
+            V = torch.cat(V, dim=1)
+            scores = self.scoring(V).sum(dim=0)
+            
+            # scoring
+                                    
+                    
+                        
+            
+        
+        
+        
+        
+        
+        
+        return 
 
     def forward(self, x, h_prev):
         """ Batched version of forward pass
