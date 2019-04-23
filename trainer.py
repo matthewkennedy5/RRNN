@@ -141,7 +141,7 @@ class RRNNTrainer:
                     self.validate()
 
             if e % self.params['epochs_per_checkpoint'] == 0:
-                self.checkpoint_model()
+                self.checkpoint_model(e+1)
 
             if e % self.params['pickle_every'] == 0:
                 pickle.dump(loss_history, open('loss_history.pkl', 'wb'))
