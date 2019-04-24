@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-“”"
+"""
 Created on Thu Apr 18 15:15:54 2019
 
 @author: Bruce
-“”"
+"""
 
 import torch
 import torch.nn as nn
@@ -16,25 +16,25 @@ from tree_methods import Node
 
 
 def retrieve_binary_operation(s):
-    if s == ‘add’:
+    if s == 'add':
         binary = lambda x,y: x+y
-    elif s == ‘mul’:
+    elif s == 'mul':
         binary = lambda x,y: x*y
     else:
-        raise ValueError(‘No such binary function %s!’%s)
+        raise ValueError('No such binary function %s!'%s)
     return binary
 
 def retrieve_unary_operation(s):
-    if s == ‘sigmoid’:
+    if s == 'sigmoid':
         unary = lambda x: torch.sigmoid(x)
-    elif s == ‘tanh’:
+    elif s == 'tanh':
         unary = lambda x: torch.tanh(x)
-    elif s == ‘minus’:
+    elif s == 'minus':
         unary = lambda x: 1-x
-    elif s == ‘identity’:
+    elif s == 'identity':
         unary = lambda x: x    
     else:
-        raise ValueError(‘No such unary function %s!’%s)
+        raise ValueError('No such unary function %s!'%s)
     return unary
 
 
@@ -43,8 +43,8 @@ class RRNNforGRUCell(nn.Module):
         super(RRNNforGRUCell, self).__init__()
 
         self.hidden_size = hidden_size
-        self.binary_ops_list = [‘add’, ‘mul’]
-        self.unary_ops_list = [‘sigmoid’, ‘tanh’, ‘minus’, ‘identity’, ‘relu’]
+        self.binary_ops_list = ['add', 'mul']
+        self.unary_ops_list = ['sigmoid', 'tanh', 'minus', 'identity', 'relu']
         self.m = 1  # Num of output vectors
         self.N = 9  # Num of generated nodes in one cell
         self.l = 4  # Num of parameter matrices (L_i, R_i, b_i)
@@ -126,26 +126,26 @@ class RRNNforGRUCell(nn.Module):
                         for k in available_LR_index:
                             b = self.b_list[k]
                             for binary_func in self.binary_ops_list:
-                                if binary_func == ‘add’:
+                                if binary_func == 'add':
                                     res = L_times_left_child[i][k] + R_times_left_child[j][k] + b
-                                else:   # elif binary_func == ‘mul’:
+                                else:   # elif binary_func == 'mul':
                                     res = L_times_left_child[i][k] * R_times_left_child[j][k] + b
                                 if res.abs().max() > 1:
                                     V.append(torch.sigmoid(res))
-                                    V_structure.append([i, j, k, binary_func, ‘sigmoid’])
+                                    V_structure.append([i, j, k, binary_func, 'sigmoid'])
                                     V.append(torch.tanh(res))
-                                    V_structure.append([i, j, k, binary_func, ‘tanh’])                                    
+                                    V_structure.append([i, j, k, binary_func, 'tanh'])                                    
                                 else:
                                     V.append(torch.sigmoid(res))
-                                    V_structure.append([i, j, k, binary_func, ‘sigmoid’])
+                                    V_structure.append([i, j, k, binary_func, 'sigmoid'])
                                     V.append(torch.tanh(res))
-                                    V_structure.append([i, j, k, binary_func, ‘tanh’])
+                                    V_structure.append([i, j, k, binary_func, 'tanh'])
                                     V.append(1-res)
-                                    V_structure.append([i, j, k, binary_func, ‘minus’])
+                                    V_structure.append([i, j, k, binary_func, 'minus'])
                                     V.append(res)
-                                    V_structure.append([i, j, k, binary_func, ‘identity’])
+                                    V_structure.append([i, j, k, binary_func, 'identity'])
                                     V.append(torch.relu(res))
-                                    V_structure.append([i, j, k, binary_func, ‘relu’])                   
+                                    V_structure.append([i, j, k, binary_func, 'relu'])                   
             
             V = torch.cat(V, dim=1)
             scores = self.scoring(V).reshape(batch_size, 1, -1)
@@ -167,12 +167,12 @@ class RRNNforGRUCell(nn.Module):
         return 
 
     def forward(self, x, h_prev):
-        “”" Batched version of forward pass
+        """ Batched version of forward pass
 
         Input:
             x - Tensor of shape batch_size * 1 * hidden_size
             h_prev - Tensor of shape batch_size * 1 * hidden_size
-        “”"
+        """
         # initialize L3 R3 to be identity
         batch_size = x.shape[0]
         l = self.l
@@ -242,15 +242,15 @@ class RRNNforGRUCell(nn.Module):
 
 #        # set up nodes
 #        o = torch.zeros([batch_size, 1, self.hidden_size], device=x.device)
-#        z_1Node = Node(z_1, name=‘z_1’, structure=G_structure[0], left_child=Node(x, ‘x’), right_child=Node(h_prev, ‘h’))
-#        rNode = Node(r, name=‘r’, structure=G_structure[1], left_child=Node(x, ‘x’), right_child=Node(h_prev, ‘h’))
-#        z_2Node = Node(z_2, name=‘z_2’, structure=G_structure[2], left_child=Node(x, ‘x’), right_child=Node(h_prev, ‘h’))
-#        rhNode = Node(rh, name=‘r*h’, structure=G_structure[3], left_child=Node(h_prev, ‘h’), right_child=rNode)
-#        h_tildeNode = Node(h_tilde, name=‘h_tilde’, structure=G_structure[4], left_child=Node(x, ‘x’), right_child=rhNode)
-#        oneMinuszNode = Node(oneMinusZ1, name=‘1-z’, structure=G_structure[5], left_child=Node(o, ‘0’), right_child=z_1Node)
-#        zh_tildeNode = Node(zh_tilde, name=‘(1-z)*h_tilde’, structure=G_structure[6], left_child=h_tildeNode, right_child=oneMinuszNode)
-#        zhNode = Node(z2h, name=‘z*h’, structure=G_structure[7], left_child=Node(h_prev, ‘h’), right_child=z_2Node)
-#        h_nextNode = Node(h_next, name=‘h_next’, structure=G_structure[8], left_child=zh_tildeNode, right_child=zhNode)
+#        z_1Node = Node(z_1, name='z_1', structure=G_structure[0], left_child=Node(x, 'x'), right_child=Node(h_prev, 'h'))
+#        rNode = Node(r, name='r', structure=G_structure[1], left_child=Node(x, 'x'), right_child=Node(h_prev, 'h'))
+#        z_2Node = Node(z_2, name='z_2', structure=G_structure[2], left_child=Node(x, 'x'), right_child=Node(h_prev, 'h'))
+#        rhNode = Node(rh, name='r*h', structure=G_structure[3], left_child=Node(h_prev, 'h'), right_child=rNode)
+#        h_tildeNode = Node(h_tilde, name='h_tilde', structure=G_structure[4], left_child=Node(x, 'x'), right_child=rhNode)
+#        oneMinuszNode = Node(oneMinusZ1, name='1-z', structure=G_structure[5], left_child=Node(o, '0'), right_child=z_1Node)
+#        zh_tildeNode = Node(zh_tilde, name='(1-z)*h_tilde', structure=G_structure[6], left_child=h_tildeNode, right_child=oneMinuszNode)
+#        zhNode = Node(z2h, name='z*h', structure=G_structure[7], left_child=Node(h_prev, 'h'), right_child=z_2Node)
+#        h_nextNode = Node(h_next, name='h_next', structure=G_structure[8], left_child=zh_tildeNode, right_child=zhNode)
 
 #        G_node = [z_1Node, rNode, z_2Node, rhNode, h_tildeNode, oneMinuszNode, zh_tildeNode, zhNode, h_nextNode]
 #        for node in G_node:
@@ -273,7 +273,7 @@ class RRNNforGRU(nn.Module):
         self.output_layer = nn.Linear(hidden_size, vocab_size)
         self.batch_size = batch_size
 
-    def init_hidden(self, n_batch, device=torch.device(‘cpu’)):
+    def init_hidden(self, n_batch, device=torch.device('cpu')):
         return torch.zeros([n_batch, 1, self.hidden_size], requires_grad=True, device=device)
 
     def forward(self, inputs):
@@ -300,7 +300,7 @@ class RRNNforGRU(nn.Module):
         margins_batch = torch.stack(margins_list, dim=1)
         return pred_chars_batch, h_batch, pred_tree_list, structures_list, margins_batch
 
-if __name__ == ‘__main__‘:
+if __name__ == '__main__':
     timer = time.time()
     HIDDEN_SIZE = 100
     for i in range(1):
@@ -319,6 +319,7 @@ if __name__ == ‘__main__‘:
         model = RRNNforGRU(HIDDEN_SIZE, vocab_size=27, batch_size=BATCH_SIZE)
         pred_chars_batch, h_batch, pred_tree_list, structures_list, margins_batch = model(inputs)
     print(time.time()-timer)
+
 
 
 
