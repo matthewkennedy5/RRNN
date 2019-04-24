@@ -42,35 +42,40 @@ class RRNNTrainer:
         self.train_data = train_dataloader
         self.val_data = val_dataloader
 
+        self.train_mode = params['initial_train_mode']
+        scoring, weights = self.get_parameter_subsets()
+        learning_rate = params['learning_rate']
         if params['optimizer'] == 'adam':
-            optimizer = torch.optim.Adam(self.model.parameters(), lr=params['learning_rate'])
+            self.scoring_optimizer = torch.optim.Adam(scoring, lr=learning_rate)
+            self.weights_optimizer = torch.optim.Adam(weights, lr=learning_rate)
         elif params['optimizer'] == 'sgd':
-            optimizer = torch.optim.SGD(self.model.parameters(), lr=params['learning_rate'])
-        self.optimizer = optimizer
+            self.scoring_optimizer = torch.optim.SGD(scoring, lr=learning_rate)
+            self.weights_optimizer = torch.optim.SGD(weights, lr=learning_rate)
+        if self.train_mode == 'scoring':
+            self.optimizer = self.scoring_optimizer
+        else:
+            self.optimizer = self.weights_optimizer
 
         self.params = params
         self.lamb1, self.lamb2, self.lamb3, self.lamb4 = params['lambdas']
         # self.loss = torch.nn.KLDivLoss()
         self.loss = torch.nn.CrossEntropyLoss()
-        # TODO: Change this variable name--it's not a true iteration count. It
-        # increments multiple times per batch.
         self.train_mode = params['initial_train_mode']
-        
+
         # TODO: include the following in the heading part and params
         self.current_stage = 'searching' # another choice is 'fixing'
         if not os.path.isdir(BATCH_HISTORY_DIR):
             os.makedirs(BATCH_HISTORY_DIR)
-        
-    
+
     def load_optimal_history(self, i_batch):
         file_name = BATCH_HISTORY_DIR + '%d.txt'%i_batch
-        
+
         if not os.path.isfile(file_name):
             raise ValueError('No such batch file')
-        
+
         loss_history = []
         structure_history = []
-        
+
         file = open(file_name, 'r')
         for line in file.readlines():
             i_epoch, i_batch, i_time_step, loss, structure = [eval(s) for s in line[:-1].split(';')]
@@ -80,14 +85,38 @@ class RRNNTrainer:
             loss_history[i_epoch].append(loss)
             structure_history[i_epoch].append(structure)
         file.close()
-        
+
         loss_history = np.array(loss_history)
         idx = np.argmin(loss_history, axis=0)
         optimal_history = []
         for i_time_step in range(self.time_steps):
             optimal_history.append(structure_history[idx[i_time_step]][i_time_step])
-            
+
         return optimal_history
+
+    def get_parameter_subsets(self):
+        """Separates the parameters into the scoring and weights.
+
+        The output layer is included in both scoring and weights since we always
+        train it.
+
+        Returns:
+            scoring - list of the scoring parameters (nn.Parameter)
+            weights - list of the L R b weight parameters
+        """
+        scoring = []
+        weights = []
+        for name, param in self.model.named_parameters():
+            if 'output' in name:
+                scoring.append(param)
+                weights.append(param)
+            elif 'scoring' in name:
+                scoring.append(param)
+            elif '_list' in name:   # L_list R_list and b_list
+                weights.append(param)
+            else:
+                raise ValueError('Unknown parameter name: ' + name)
+        return scoring, weights
 
     def switch_train_mode(self):
         """Switches the train mode and freezes parameters from the other mode.
@@ -97,12 +126,14 @@ class RRNNTrainer:
         output weights of the RRNN, since training them both at the same time
         interferes with each other.
         """
+        print('[INFO] Switching to training the ' + self.train_mode + '.')
         if self.train_mode == 'weights':
             self.train_mode = 'scoring'
+            self.optimizer = self.scoring_optimizer
         else:
             self.train_mode = 'weights'
-        print('[INFO] Switching to training the ' + self.train_mode + '.')
-        self.freeze_params()
+            self.optimizer = self.weights_optimizer
+        # self.freeze_params()
 
     def freeze_params(self):
         """Freeze the parameters we're not trying to train.
@@ -159,7 +190,7 @@ class RRNNTrainer:
             with tqdm(self.train_data) as t:
                 for X_batch, y_batch in self.train_data:
                     i_batch += 1
-                    
+
                     self.optimizer.zero_grad()
                     if self.current_stage == 'searching':
                         losses, acc, structures = self.train_step_stage_searching(X_batch, y_batch, i_epoch, i_batch)
@@ -176,7 +207,7 @@ class RRNNTrainer:
 
                     t.set_postfix(loss=losses)
                     t.update()
-            
+
             if i_epoch % self.params['validate_every'] == 0:
                 if len(self.val_data) > 0:
                     self.validate(i_epoch)
@@ -192,40 +223,41 @@ class RRNNTrainer:
 
 #            if i_epoch % self.params['alternate_every'] == 0:
 #                self.switch_train_mode()
-            
+
             # TODO: switch between training stages
-                
+
         self.model.eval()
+        self.gru_model.eval()
         return loss_history, acc_history, structure_history
 
     def train_step_stage_fixing(self, X, y, i_epoch, i_batch):
         optimal_structure = self.load_optimal_history(i_batch)
         batch_size, time_steps, HIDDEN_SIZE = X.shape
         lamb1, lamb2, lamb3, lamb4 = self.params['lambdas']
-        
+
         # forward pass of the model
         pred_chars_batch = self.model(X, optimal_structure)
-        
+
         # calculate loss terms
         loss1 = 0
         for i_time in range(time_steps):
                 loss1 += self.loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1))
-        
+
         loss3 = 0
         for param in self.model.parameters():
             loss3 += param.norm()**2
-        
+
         # report loss and accuracy
         losses = [lamb1*loss1, lamb3*loss3]
         accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*y.shape[0])
-        
+
         return losses, accuracy, optimal_structure
 
     def train_step_stage_searching(self, X, y, i_epoch, i_batch):
         batch_size, time_steps, HIDDEN_SIZE = X.shape
         # forward pass
         pred_chars_batch, h_batch, pred_tree_list, structures_list, margins_batch = self.model(X)
-        
+
         # forward pass of traditional GRU
         gru_h_list = self.gru_model(X)[0]
         gru_h_list = torch.cat([torch.zeros([batch_size, 1, HIDDEN_SIZE], device=X.device), gru_h_list], dim=1)
@@ -239,10 +271,10 @@ class RRNNTrainer:
                                                        self.gru_model.bias_ih_l0,
                                                        self.gru_model.bias_hh_l0)[1]
             target_tree_list.append(target_tree)
-            
+
         # get weight for each loss terms
         lamb1, lamb2, lamb3, lamb4 = params['lambdas']
-        
+
         # calculate loss terms
         loss1_list = []
         for i_time in range(y.shape[1]):
@@ -253,21 +285,21 @@ class RRNNTrainer:
         if lamb2 != 0:
             desired_margin = params['loss2_margin']
             loss2 = (desired_margin - margins_batch.clamp(max=desired_margin)).sum().div_(desired_margin)
-            
+
         loss3 = 0
         if lamb3 != 0:
             for param in self.model.parameters():
                 loss3 += param.norm()**2
-        
+
         loss4 = 0
         if lamb4 != 0:
             loss4_list = []
             for i_time_step in range(time_steps):
                 loss4_list.append(tree_methods.tree_distance_metric_list(
-                                            pred_tree_list[i_time_step], 
+                                            pred_tree_list[i_time_step],
                                             target_tree_list[i_time_step]))
             loss4 = sum(loss4_list)
-                
+
         losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
         accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*y.shape[0])
 
@@ -282,9 +314,9 @@ class RRNNTrainer:
             lst = [i_epoch, i_batch, i_time_step, loss1_list[i_time_step].item(), structures_list[i_time_step]]
             file.write(';'.join([str(s) for s in lst])+'\n')
         file.close()
-        
+
         return losses, accuracy, structures_list
-    
+
     def validate(self, i_epoch, verbose=True):
         """Runs inference over the validation set periodically during training.
 
@@ -301,7 +333,7 @@ class RRNNTrainer:
             loss, acc, _ = self.train_step_stage_searching(X, y, 'val%d'%i_epoch, i_batch)
             losses[i_batch, :] = loss
             accuracy.append(acc)
-            
+
         losses = losses.mean(axis=0).tolist()
         accuracy = np.mean(accuracy)
 
