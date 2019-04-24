@@ -6,8 +6,7 @@ Created on Thu Oct 11 02:44:59 2018
 """
 
 import torch
-import itertools
-import random
+
 
 class Node(object):
     def __init__(self, vector, name=None, structure=None, left_child=None, right_child=None, parent=None):
@@ -17,21 +16,6 @@ class Node(object):
         self.leftchild = left_child
         self.rightchild = right_child
         self.parent = None
-
-
-def depth(node):
-    '''
-        calculate the depth of a tree, which is defined by the maximum length of path that starts from the input node
-    '''
-    if node.leftchild == None and node.rightchild == None:
-        return 1
-    elif node.leftchild == None and node.rightchild != None:
-        return depth(node.rightchild) + 1
-    elif node.leftchild != None and node.rightchild == None:
-        return depth(node.leftchild) + 1
-    else:
-        return max(depth(node.leftchild), depth(node.rightchild)) + 1
-
 
 # GRU Tree
 def GRUtree_pytorch(x, h, weight_ih_l0, weight_hh_l0, bias_ih_l0, bias_hh_l0):
@@ -50,29 +34,28 @@ def GRUtree_pytorch(x, h, weight_ih_l0, weight_hh_l0, bias_ih_l0, bias_hh_l0):
     zh_tilde = oneMinusz*h_tilde
     h_next = zh + zh_tilde
 
-#    z_1Node = Node(z,  name='z1', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
-#    rNode = Node(r, name='r', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
-#    z_2Node = Node(z,  name='z2', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
-#    rhNode = Node(rh, name='r*h', left_child=Node(h, 'h'), right_child=rNode)
-#    h_tildeNode = Node(h_tilde, name='h_tilde', left_child=Node(x, 'x'), right_child=rhNode)
-#    oneMinuszNode = Node(oneMinusz, name='1-z', left_child=Node(o, '0'), right_child=z_1Node)
-#    zh_tildeNode = Node(zh_tilde, name='(1-z)*h_tilde', left_child=h_tildeNode, right_child=oneMinuszNode)
-#    zhNode = Node(zh, name='z*h', left_child=Node(h, 'h'), right_child=z_2Node)
-#    h_nextNode = Node(h_next, name='h_next', left_child=zh_tildeNode, right_child=zhNode)
-#
-#    node_list = [z_1Node, rNode, z_2Node, rhNode, h_tildeNode, oneMinuszNode, zh_tildeNode, zhNode, h_nextNode]
-#    for node in node_list:
-#        node.leftchild.parent = node
-#        node.rightchild.parent = node
-#        
-#    return h_nextNode, node_list
-    
-    vectors = [z, r, z, rh, h_tilde, oneMinusz, zh_tilde, zh, h_next]
-    return [], torch.cat(vectors, dim=2)
+    z_1Node = Node(z,  name='z1', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
+    rNode = Node(r, name='r', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
+    z_2Node = Node(z,  name='z2', left_child=Node(x, 'x'), right_child=Node(h, 'h'))
+    rhNode = Node(rh, name='r*h', left_child=Node(h, 'h'), right_child=rNode)
+    h_tildeNode = Node(h_tilde, name='h_tilde', left_child=Node(x, 'x'), right_child=rhNode)
+    oneMinuszNode = Node(oneMinusz, name='1-z', left_child=Node(o, '0'), right_child=z_1Node)
+    zh_tildeNode = Node(zh_tilde, name='(1-z)*h_tilde', left_child=h_tildeNode, right_child=oneMinuszNode)
+    zhNode = Node(zh, name='z*h', left_child=Node(h, 'h'), right_child=z_2Node)
+    h_nextNode = Node(h_next, name='h_next', left_child=zh_tildeNode, right_child=zhNode)
 
-
+    node_list = [z_1Node, rNode, z_2Node, rhNode, h_tildeNode, oneMinuszNode, zh_tildeNode, zhNode, h_nextNode]
+    for node in node_list:
+        node.leftchild.parent = node
+        node.rightchild.parent = node
+        
+    return h_nextNode, node_list
 
 def label_dic(tree):
+    '''
+        Returns a dictionary whose key is the index of the node and 
+            value is the corresponding vector (batch of vectors)
+    '''
     l = 1
     d = {}
     def recursive(tree, l, d):
@@ -85,9 +68,7 @@ def label_dic(tree):
     return recursive(tree, l, d)
 
     
-def tree_distance_dic(tree1, tree2):
-    d1 = label_dic(tree1)
-    d2 = label_dic(tree2)
+def tree_distance_dic(d1, d2):
     s1 = set(d1.keys())   
     s2 = set(d2.keys())
     res = 0
@@ -101,13 +82,15 @@ def tree_distance_dic(tree1, tree2):
         
 
 def tree_distance_metric_list(pred_tree, target_tree):
+    pred_dics = [label_dic(tree) for tree in pred_tree]
+    target_dics = [label_dic(tree) for tree in target_tree]
+    
     res = []
     for i in range(len(pred_tree)):
         vd_list = []
-        tree1 = pred_tree[i]
+        d1 = pred_dics[i]
         for j in range(len(target_tree)):
-            tree2 = target_tree[j]
-            vd = tree_distance_dic(tree1, tree2)
+            vd = tree_distance_dic(d1, target_dics[j])
             vd_list.append(vd)
         res.append(torch.min(torch.stack(vd_list)))
     return sum(res)
