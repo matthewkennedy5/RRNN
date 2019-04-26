@@ -82,15 +82,15 @@ def tree_distance_dic(d1, d2):
         
 
 def tree_distance_metric_list(pred_tree, target_tree):
-    pred_dics = [label_dic(tree) for tree in pred_tree]
-    target_dics = [label_dic(tree) for tree in target_tree]
+    pred_dicts = [label_dic(tree) for tree in pred_tree]
+    target_dicts = [label_dic(tree) for tree in target_tree]
     
     res = []
     for i in range(len(pred_tree)):
         vd_list = []
-        d1 = pred_dics[i]
+        d1 = pred_dicts[i]
         for j in range(len(target_tree)):
-            vd = tree_distance_dic(d1, target_dics[j])
+            vd = tree_distance_dic(d1, target_dicts[j])
             vd_list.append(vd)
         res.append(torch.min(torch.stack(vd_list)))
     return sum(res)
