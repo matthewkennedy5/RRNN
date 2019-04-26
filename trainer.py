@@ -235,7 +235,7 @@ class RRNNTrainer:
         loss2 = 0
         if lamb2 != 0:
             desired_margin = params['loss2_margin']
-            loss2 = (desired_margin - margins_batch.clamp(max=desired_margin)).sum()/desired_margin
+            loss2 = (desired_margin - margins_batch.clamp(max=desired_margin)).sum().item()/desired_margin
             loss2 /= batch_size
 
         loss3 = 0
