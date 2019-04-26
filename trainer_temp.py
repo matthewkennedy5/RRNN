@@ -139,7 +139,7 @@ for i_epoch in range(n_epoch):
         loss2 = 0
         if lamb2 != 0:
             desired_margin = params['loss2_margin']
-            loss2 = (desired_margin - margins_batch.clamp(max=desired_margin)).sum()/desired_margin
+            loss2 = (desired_margin - margins_batch.clamp(max=desired_margin)).sum().item()/desired_margin
             
         loss3 = 0
         if lamb3 != 0:
