@@ -223,12 +223,12 @@ class RRNNforGRU(nn.Module):
         else:
             return torch.zeros([n_batch, 1, self.hidden_size], requires_grad=True, device=device)
         
-    def forward(self, inputs, G_structure=None):
+    def forward(self, inputs, G_structure_list=None):
         batch_size, time_steps, _ = inputs.shape
         h_next = self.init_hidden(batch_size, inputs.device)
         
         # stage 1
-        if G_structure is None:
+        if G_structure_list is None:
             h_list = []
             pred_tree_list = []
             margins_list = []
@@ -256,10 +256,13 @@ class RRNNforGRU(nn.Module):
             
             for t in range(time_steps):
                 x_t = inputs[:, t, :].reshape(-1, 1, self.hidden_size)
-                h_next = self.cell.foward_stage_fixing(x_t, h_prev, G_structure)
+                G_structure = G_structure_list[t]
+                h_next = self.cell.foward_stage_fixing(x_t, h_next, G_structure)
                 pred_chars_list.append(self.output_layer(h_next))
             
-            return pred_chars_list
+            pred_chars_batch = torch.cat(pred_chars_list, dim=1)
+
+            return pred_chars_batch
 
 if __name__ == '__main__':
     timer = time.time()
@@ -297,6 +300,6 @@ if __name__ == '__main__':
         BATCH_SIZE = 16
         inputs = torch.randn(BATCH_SIZE, 20, HIDDEN_SIZE)
         model = RRNNforGRU(HIDDEN_SIZE, vocab_size=27, batch_size=BATCH_SIZE)
-        pred_chars_list = model.forward(inputs, GRU_structure)
+        pred_chars_list = model.forward(inputs, [GRU_structure for _ in range(20)])
     print(time.time()-timer)
     
