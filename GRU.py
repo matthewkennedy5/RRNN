@@ -244,9 +244,7 @@ class RRNNforGRU(nn.Module):
                 structures_list.append(G_structure)
                 pred_tree_list.append(G_node)
                 margins_list.append(G_margin)       
-            
-            print(len(margins_list), margins_list[0].shape)
-            
+                        
             h_batch = torch.cat(h_list, dim=1)
             pred_chars_batch = torch.cat(pred_chars_list, dim=1)
             margins_batch = torch.stack(margins_list, dim=1)            
