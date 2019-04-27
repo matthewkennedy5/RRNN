@@ -23,6 +23,7 @@ VAL_LOSS_FILE = 'val_loss.txt'
 VAL_ACC_FILE = 'val_acc.txt'
 HYPERPARAM_FILE = 'hyperparameters.pkl'
 RUNTIME_FILE = 'runtime.pkl'
+BATCH_HISTORY_DIR = 'batch_history/'
 N_LOSS_TERMS = 4
 
 
@@ -53,6 +54,39 @@ class RRNNTrainer:
         # TODO: Change this variable name--it's not a true iteration count. It
         # increments multiple times per batch.
         self.train_mode = params['initial_train_mode']
+        
+        # TODO: include the following in the heading part and params
+        self.current_stage = 'searching' # another choice is 'fixing'
+        if not os.path.isdir(BATCH_HISTORY_DIR):
+            os.makedirs(BATCH_HISTORY_DIR)
+        
+    
+    def load_optimal_history(self, i_batch):
+        file_name = BATCH_HISTORY_DIR + '%d.txt'%i_batch
+        
+        if not os.path.isfile(file_name):
+            raise ValueError('No such batch file')
+        
+        loss_history = []
+        structure_history = []
+        
+        file = open(file_name, 'r')
+        for line in file.readlines():
+            i_epoch, i_batch, i_time_step, loss, structure = [eval(s) for s in line[:-1].split(';')]
+            if i_epoch+1 > len(loss_history):
+                loss_history.append([])
+                structure_history.append([])
+            loss_history[i_epoch].append(loss)
+            structure_history[i_epoch].append(structure)
+        file.close()
+        
+        loss_history = np.array(loss_history)
+        idx = np.argmin(loss_history, axis=0)
+        optimal_history = []
+        for i_time_step in range(self.time_steps):
+            optimal_history.append(structure_history[idx[i_time_step]][i_time_step])
+            
+        return optimal_history
 
     def switch_train_mode(self):
         """Switches the train mode and freezes parameters from the other mode.
@@ -118,12 +152,18 @@ class RRNNTrainer:
         loss_history = []
         acc_history = []
         structure_history = []
-        for e in range(n_epochs):
-            print('\n[INFO] Epoch %d/%d' % (e+1, n_epochs))
+        for i_epoch in range(n_epochs):
+            i_batch = -1
+            print('\n[INFO] Epoch %d/%d' % (i_epoch+1, n_epochs))
             with tqdm(self.train_data) as t:
                 for X_batch, y_batch in self.train_data:
+                    i_batch += 1
+                    
                     self.optimizer.zero_grad()
-                    losses, acc, structures = self.train_step_cuda(X_batch, y_batch)
+                    if self.current_stage == 'searching':
+                        losses, acc, structures = self.train_step_stage_searching(X_batch, y_batch, i_epoch, i_batch)
+                    else:   # elif self.current_stage == 'fixing':
+                        losses, acc, structures = self.train_step_stage_fixing(X_batch, y_batch, i_epoch, i_batch)
                     loss_fn = sum(losses)
                     loss_fn.backward()
                     self.optimizer.step()
@@ -135,53 +175,62 @@ class RRNNTrainer:
 
                     t.set_postfix(loss=losses)
                     t.update()
+            
+            # TODO: use this after fixing the validate function
+#            if i_epoch % self.params['validate_every'] == 0:
+#                if len(self.val_data) > 0:
+#                    self.validate()
 
-            if e % self.params['validate_every'] == 0:
-                if len(self.val_data) > 0:
-                    self.validate()
+            if i_epoch % self.params['epochs_per_checkpoint'] == 0:
+                self.checkpoint_model(i_epoch+1)
 
-            if e % self.params['epochs_per_checkpoint'] == 0:
-                self.checkpoint_model(e+1)
-
-            if e % self.params['pickle_every'] == 0:
+            if i_epoch % self.params['pickle_every'] == 0:
                 pickle.dump(loss_history, open('loss_history.pkl', 'wb'))
                 pickle.dump(acc_history, open('acc_history.pkl', 'wb'))
                 pickle.dump(structure_history, open('structure_history.pkl', 'wb'))
                 print('[INFO] Saved loss, accuracy, and structure history.')
 
-            if e % self.params['alternate_every'] == 0:
+            if i_epoch % self.params['alternate_every'] == 0:
                 self.switch_train_mode()
-
+            
+            # TODO: switch between training stages
+                
         self.model.eval()
         return loss_history, acc_history, structure_history
 
-    def train_step_cuda(self, X, y):
-        """Calculates loss and accuracy for the given batch of data points.
+    def train_step_stage_fixing(self, X, y, i_epoch, i_batch):
+        optimal_structure = self.load_optimal_history(i_batch)
+        batch_size, time_steps, HIDDEN_SIZE = X.shape
+        lamb1, lamb2, lamb3, lamb4 = self.params['lambdas']
+        
+        # forward pass of the model
+        pred_chars_batch = self.model(X, optimal_structure)
+        
+        # calculate loss terms
+        loss1 = 0
+        for i_time in range(time_steps):
+                loss1 += self.loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1))
+        
+        loss3 = 0
+        for param in self.model.parameters():
+            loss3 += param.norm()**2
+        
+        # report loss and accuracy
+        losses = [lamb1*loss1, lamb3*loss3]
+        accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*y.shape[0])
+        
+        return losses, accuracy, optimal_structure
 
-        Inputs:
-            X: Tensor of shape (batch_size, time_steps, hidden_size)
-            y: Tensor of shape (batch_size, time_steps, hidden_size), one-hot
-
-        Returns:
-            losses
-            accuracy
-
-        Requires:
-            self.model = RRNNforGRU
-            self.gru_model
-            self.params
-            self.loss = torch.nn.CrossEntropyLoss()
-        """
-        batch_size, time_steps, hidden_size = X.shape
-
+    def train_step_stage_searching(self, X, y, i_epoch, i_batch):
+        batch_size, time_steps, HIDDEN_SIZE = X.shape
         # forward pass
         pred_chars_batch, h_batch, pred_tree_list, structures_list, margins_batch = self.model(X)
-
-        # forward pass of ground-truth GRU
+        
+        # forward pass of traditional GRU
         gru_h_list = self.gru_model(X)[0]
         gru_h_list = torch.cat([torch.zeros([batch_size, 1, HIDDEN_SIZE], device=X.device), gru_h_list], dim=1)
         target_tree_list = []
-        for t in range(time_steps):
+        for t in range(X.shape[1]):
             gru_x = X[:, t, :].reshape(batch_size, 1, HIDDEN_SIZE)
             gru_h = gru_h_list[:, t, :].reshape(batch_size, 1, HIDDEN_SIZE)
             target_tree = tree_methods.GRUtree_pytorch(gru_x, gru_h,
@@ -190,53 +239,58 @@ class RRNNTrainer:
                                                        self.gru_model.bias_ih_l0,
                                                        self.gru_model.bias_hh_l0)[1]
             target_tree_list.append(target_tree)
-
+            
         # get weight for each loss terms
-        lamb1, lamb2, lamb3, lamb4 = self.params['lambdas']
-
+        lamb1, lamb2, lamb3, lamb4 = params['lambdas']
+        
         # calculate loss terms
-        loss1 = 0
-        if lamb1 != 0:
-            for i_time in range(time_steps):
-                loss1 += self.loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1))
+        loss1_list = []
+        for i_time in range(y.shape[1]):
+            loss1_list.append(self.loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1)))
+        loss1 = sum(loss1_list)
 
         loss2 = 0
         if lamb2 != 0:
             desired_margin = params['loss2_margin']
-            loss2 = (desired_margin - margins_batch.clamp(max=desired_margin)).sum()/desired_margin
-            loss2 /= batch_size
-
+            loss2 = (desired_margin - margins_batch.clamp(max=desired_margin)).sum().div_(desired_margin)
+            
         loss3 = 0
         if lamb3 != 0:
             for param in self.model.parameters():
                 loss3 += param.norm()**2
-            loss3 /= batch_size
-
+        
         loss4 = 0
         if lamb4 != 0:
-            pred_tree_list = torch.cat(pred_tree_list, dim=1)
-            target_tree_list = torch.cat(target_tree_list, dim=1)
-            loss4 = (pred_tree_list-target_tree_list).norm()**2
-            #            for i_time_step in range(time_steps):
-#                loss4 += tree_methods.tree_distance_metric_list(
-#                                            pred_tree_list[i_time_step],
-#                                            target_tree_list[i_time_step])
-            loss4 /= batch_size
-
+            loss4_list = []
+            for i_time_step in range(time_steps):
+                loss4_list.append(tree_methods.tree_distance_metric_list(
+                                            pred_tree_list[i_time_step], 
+                                            target_tree_list[i_time_step]))
+            loss4 = sum(loss4_list)
+                
         losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
-        accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*batch_size)
-        bpc1 = -np.log2(accuracy)
-        bpc2 = loss1.item()/(time_steps*np.log(2))
+        accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*y.shape[0])
 
+        # save batch history
+        file = open(BATCH_HISTORY_DIR+'%d.txt'%i_batch, 'a')
+        for i_time_step in range(time_steps):
+            lst = [i_epoch, i_batch, i_time_step, loss1_list[i_time_step].item(), structures_list[i_time_step]]
+            file.write(';'.join([str(s) for s in lst])+'\n')
+        file.close()
+        
         return losses, accuracy, structures_list
-
+        
+    
+    
+    # TODO: fix it 
     def validate(self, verbose=True):
         """Runs inference over the validation set periodically during training.
 
         Prints the validation loss and accuracy to their respective files.
         """
         X_val, y_val = next(iter(self.val_data))
-        losses, accuracy, _ = self.train_step_cuda(X_val, y_val)
+        if self.current_stage == 'searching':
+            losses, accuracy, _ = self.train_step_stage_searching(X_val, y_val)
 
         print('val_loss:', printable(losses), 'val_acc:', accuracy)
         with open(VAL_LOSS_FILE, 'a') as f:
@@ -321,7 +375,7 @@ def run(params):
     # TODO: Include other datasets
     train_set = standard_data.EnWik8Clean(subset='train', n_data=params['nb_train'], device=device)
     validation_set = standard_data.EnWik8Clean(subset='val', n_data=params['nb_val'], device=device)
-    train_dataloader = DataLoader(train_set, batch_size=params['batch_size'], shuffle=True)
+    train_dataloader = DataLoader(train_set, batch_size=params['batch_size'], shuffle=False, drop_last=True)
     val_dataloader = DataLoader(validation_set, batch_size=params['nb_val'], shuffle=False)
     print('[INFO] Beginning training with %d training samples and %d '
           'validation samples.' % (len(train_set), len(validation_set)))
