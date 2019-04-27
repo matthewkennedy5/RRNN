@@ -3,6 +3,7 @@ import time
 import datetime
 import torch
 from torch import nn
+import torchtext
 import numpy as np
 from torch.utils.data import DataLoader
 import time
@@ -278,7 +279,7 @@ class RRNNTrainer:
         # calculate loss terms
         loss1_list = []
         for i_time in range(y.shape[1]):
-            loss1_list.append(self.loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1)))
+            loss1_list.append(self.loss(pred_chars_batch[:, i_time, :], (y[:, i_time])))
         loss1 = sum(loss1_list)
 
         loss2 = 0
@@ -301,7 +302,7 @@ class RRNNTrainer:
             loss4 = sum(loss4_list)
 
         losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
-        accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*y.shape[0])
+        accuracy = (pred_chars_batch.argmax(dim=2)==y).sum().item()/float(time_steps*batch_size)
 
         # save batch history
         if isinstance(i_epoch, int):    # train
@@ -422,9 +423,9 @@ def run(params):
     validation_set = standard_data.EnWik8Clean(subset='val', n_data=params['nb_val'], device=device)
     train_dataloader = DataLoader(train_set, batch_size=params['batch_size'], shuffle=False, drop_last=True)
     val_dataloader = DataLoader(validation_set, batch_size=params['nb_val'], shuffle=False)
+
     print('[INFO] Beginning training with %d training samples and %d '
           'validation samples.' % (len(train_set), len(validation_set)))
-
     trainer = RRNNTrainer(model, gru_model, train_dataloader, val_dataloader, params)
     loss_history, acc_history, structure_history = trainer.train(params['epochs'])
     pickle.dump(loss_history, open('loss_history.pkl', 'wb'))
