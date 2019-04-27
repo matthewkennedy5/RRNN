@@ -6,6 +6,7 @@ import pdb
 from tqdm import tqdm
 from gensim.models import Word2Vec
 from torch.utils import data
+from torchtext import data, datasets
 from dataloader import element_dict
 
 dirname = os.path.dirname(os.path.realpath(__file__))
@@ -196,6 +197,7 @@ class EnWik8Clean(data.Dataset):
 
         self.X = self.X[:n_data].to(device)
         self.y = self.y[:n_data].to(device)
+        self.y = torch.argmax(self.y, dim=2)  # Convert to index labels
 
     def __len__(self):
         return self.X.shape[0]
@@ -203,9 +205,41 @@ class EnWik8Clean(data.Dataset):
     def __getitem__(self, index):
         return (self.X[index], self.y[index])
 
+class PennTreebank(data.Dataset):
+    """Dataset containing the Penn Treebank word-level language modelling data.
 
+    Inputs:
+        subset - either 'train', 'val', or 'test'.
+        n_data - how many data points to sample.
+        device - torch.device on which to store the data
+    """
+    def __init__(self, subset, n_data, device):
+        train, valid, test = datasets.PennTreebank.iters(batch_size=1,
+                                                         bptt_len=CHUNK_LENGTH,
+                                                         device=device,
+                                                         vectors='glove.6B.100d')
+        if subset == 'train':
+            self.data = train
+        elif subset == 'val':
+            self.data = val
+        elif subset == 'test':
+            self.data = test
+        self.embeddings = self.data.dataset.fields['text'].vocab.vectors
 
+        self.X = []
+        self.y = []
+        for sample in self.data:
+            # sample.text contains the index of the embedded vector. We store the
+            # vectors themselves in self.X, and word indices in self.y.
+            if len(sample.text) == CHUNK_LENGTH:    # To avoid the leftover chunk of 8 at the end
+                self.X.append(self.embeddings[sample.text])
+                self.y.append(sample.target)
+        self.X = torch.stack(self.X).squeeze()
+        self.y = torch.stack(self.y).squeeze()
 
+    def __len__(self):
+        return self.X.shape[0]
 
-
+    def __getitem__(self, index):
+        return (self.X[index], self.y[index])
 

@@ -3,6 +3,7 @@ import time
 import datetime
 import torch
 from torch import nn
+import torchtext
 import numpy as np
 from torch.utils.data import DataLoader
 import time
@@ -230,7 +231,8 @@ class RRNNTrainer:
         loss1 = 0
         if lamb1 != 0:
             for i_time in range(time_steps):
-                loss1 += self.loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1))
+                # loss1 += self.loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1))
+                loss1 += self.loss(pred_chars_batch[:, i_time, :], y[:, i_time])
 
         loss2 = 0
         if lamb2 != 0:
@@ -256,7 +258,8 @@ class RRNNTrainer:
             loss4 /= batch_size
 
         losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
-        accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*batch_size)
+        # accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*batch_size)
+        accuracy = (pred_chars_batch.argmax(dim=2)==y).sum().item()/float(time_steps*batch_size)
         bpc1 = -np.log2(accuracy)
         bpc2 = loss1.item()/(time_steps*np.log(2))
 
@@ -349,15 +352,22 @@ def run(params):
         print('[INFO] Warm starting from ' + weights + '.')
         model.load_state_dict(torch.load(weights))
 
-    print('[INFO] Loading training data into memory.')
-    # TODO: Include other datasets
-    train_set = standard_data.EnWik8Clean(subset='train', n_data=params['nb_train'], device=device)
-    validation_set = standard_data.EnWik8Clean(subset='val', n_data=params['nb_val'], device=device)
+    if params['dataset'] == 'wiki':
+        print('[INFO] Loading the enwik8 dataset.')
+        train_set = standard_data.EnWik8Clean(subset='train', n_data=params['nb_train'], device=device)
+        validation_set = standard_data.EnWik8Clean(subset='val', n_data=params['nb_val'], device=device)
+    elif params['dataset'] == 'ptb':
+        print('[INFO] Loading the Penn Treebank dataset.')
+        dirname = os.getcwd()
+        os.chdir('..')
+        train_set = standard_data.PennTreebank(subset='train', n_data=params['nb_train'], device=device)
+        validation_set = standard_data.EnWik8Clean(subset='val', n_data=params['nb_val'], device=device)
+        os.chdir(dirname)
     train_dataloader = DataLoader(train_set, batch_size=params['batch_size'], shuffle=True)
     val_dataloader = DataLoader(validation_set, batch_size=params['nb_val'], shuffle=False)
+
     print('[INFO] Beginning training with %d training samples and %d '
           'validation samples.' % (len(train_set), len(validation_set)))
-
     trainer = RRNNTrainer(model, gru_model, train_dataloader, val_dataloader, params)
     loss_history, acc_history, structure_history = trainer.train(params['epochs'])
     pickle.dump(loss_history, open('loss_history.pkl', 'wb'))
