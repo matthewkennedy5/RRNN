@@ -307,45 +307,13 @@ def printable(x):
 # Performs a training run using the given hyperparameters. Saves out data and model checkpoints
 # into the current directory.
 def run(params):
-    # Assuming we are already in the directory where the output files should be
+    # Assuming we are already in the run output directory
     pickle.dump(params, open(HYPERPARAM_FILE, 'wb'))
     print('[INFO] Saved hyperparameters.')
 
     start = time.time()
     device = torch.device(params['device'])
     gru_model = torch.load('../gru_parameters.pkl').to(device)
-
-    # Extract GRU pre-trained weights
-    W_ir, W_iz, W_in = gru_model.weight_ih_l0.chunk(3)
-    W_hr, W_hz, W_hn = gru_model.weight_hh_l0.chunk(3)
-    b_ir, b_iz, b_in = gru_model.bias_ih_l0.chunk(3)
-    b_hr, b_hz, b_hn = gru_model.bias_hh_l0.chunk(3)
-
-    L1 = W_ir
-    R1 = W_hr
-    b1 = b_ir + b_hr
-    L2 = W_iz
-    R2 = W_hz
-    b2 = b_iz + b_hz
-    L3 = W_in
-    R3 = W_hn
-    b3 = b_in #+ r*b_hn
-
-    model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, batch_size=params['batch_size'],
-                       scoring_hsize=params['scoring_hidden_size']).to(device)
-
-    # Warm-start with pretrained GRU weights
-    if params['pretrained_weights']:
-        print('[INFO] Loading pre-trained GRU weights.')
-        model.cell.L_list[1] = nn.Parameter(L1)
-        model.cell.L_list[2] = nn.Parameter(L2)
-        model.cell.L_list[3] = nn.Parameter(L3)
-        model.cell.R_list[1] = nn.Parameter(R1)
-        model.cell.R_list[2] = nn.Parameter(R2)
-        model.cell.R_list[3] = nn.Parameter(R3)
-        model.cell.b_list[1] = nn.Parameter(b1)
-        model.cell.b_list[2] = nn.Parameter(b2)
-        model.cell.b_list[3] = nn.Parameter(b3)
 
     if params['warm_start']:
         weights = params['weights_file']
@@ -356,6 +324,7 @@ def run(params):
         print('[INFO] Loading the enwik8 dataset.')
         train_set = standard_data.EnWik8Clean(subset='train', n_data=params['nb_train'], device=device)
         validation_set = standard_data.EnWik8Clean(subset='val', n_data=params['nb_val'], device=device)
+        num_classes = 27
     elif params['dataset'] == 'ptb':
         print('[INFO] Loading the Penn Treebank dataset.')
         dirname = os.getcwd()
@@ -363,8 +332,45 @@ def run(params):
         train_set = standard_data.PennTreebank(subset='train', n_data=params['nb_train'], device=device)
         validation_set = standard_data.EnWik8Clean(subset='val', n_data=params['nb_val'], device=device)
         os.chdir(dirname)
+        num_classes = 10001
+    else:
+        raise ValueError('Invalid dataset name. The "dataset" field in the JSON parameter file'
+                         ' must be "wiki" or "ptb".')
     train_dataloader = DataLoader(train_set, batch_size=params['batch_size'], shuffle=True)
     val_dataloader = DataLoader(validation_set, batch_size=params['nb_val'], shuffle=False)
+
+
+    model = RRNNforGRU(HIDDEN_SIZE, num_classes, batch_size=params['batch_size'],
+                       scoring_hsize=params['scoring_hidden_size']).to(device)
+
+    # Warm-start with pretrained GRU weights
+    if params['pretrained_weights']:
+        print('[INFO] Loading pre-trained GRU weights.')
+        # Extract GRU pre-trained weights
+        W_ir, W_iz, W_in = gru_model.weight_ih_l0.chunk(3)
+        W_hr, W_hz, W_hn = gru_model.weight_hh_l0.chunk(3)
+        b_ir, b_iz, b_in = gru_model.bias_ih_l0.chunk(3)
+        b_hr, b_hz, b_hn = gru_model.bias_hh_l0.chunk(3)
+
+        L1 = W_ir
+        R1 = W_hr
+        b1 = b_ir + b_hr
+        L2 = W_iz
+        R2 = W_hz
+        b2 = b_iz + b_hz
+        L3 = W_in
+        R3 = W_hn
+        b3 = b_in #+ r*b_hn
+
+        model.cell.L_list[1] = nn.Parameter(L1)
+        model.cell.L_list[2] = nn.Parameter(L2)
+        model.cell.L_list[3] = nn.Parameter(L3)
+        model.cell.R_list[1] = nn.Parameter(R1)
+        model.cell.R_list[2] = nn.Parameter(R2)
+        model.cell.R_list[3] = nn.Parameter(R3)
+        model.cell.b_list[1] = nn.Parameter(b1)
+        model.cell.b_list[2] = nn.Parameter(b2)
+        model.cell.b_list[3] = nn.Parameter(b3)
 
     print('[INFO] Beginning training with %d training samples and %d '
           'validation samples.' % (len(train_set), len(validation_set)))

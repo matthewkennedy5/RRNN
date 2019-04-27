@@ -234,8 +234,8 @@ class PennTreebank(data.Dataset):
             if len(sample.text) == CHUNK_LENGTH:    # To avoid the leftover chunk of 8 at the end
                 self.X.append(self.embeddings[sample.text])
                 self.y.append(sample.target)
-        self.X = torch.stack(self.X).squeeze()
-        self.y = torch.stack(self.y).squeeze()
+        self.X = torch.stack(self.X[:n_data]).squeeze().to(device)
+        self.y = torch.stack(self.y[:n_data]).squeeze().to(device)
 
     def __len__(self):
         return self.X.shape[0]
