@@ -23,9 +23,10 @@ VAL_LOSS_FILE = 'val_loss.txt'
 VAL_ACC_FILE = 'val_acc.txt'
 HYPERPARAM_FILE = 'hyperparameters.pkl'
 RUNTIME_FILE = 'runtime.pkl'
-BATCH_HISTORY_DIR = 'batch_history/'
 N_LOSS_TERMS = 4
 
+
+BATCH_HISTORY_DIR = 'batch_history/'
 
 class RRNNTrainer:
     """Trainer class for the RRNNforGRU.
@@ -176,20 +177,19 @@ class RRNNTrainer:
                     t.set_postfix(loss=losses)
                     t.update()
             
-#             TODO: use this after fixing the validate function
             if i_epoch % self.params['validate_every'] == 0:
                 if len(self.val_data) > 0:
-                    self.validate()
+                    self.validate(i_epoch)
 
             if i_epoch % self.params['epochs_per_checkpoint'] == 0:
                 self.checkpoint_model(i_epoch+1)
-#
-#            if i_epoch % self.params['pickle_every'] == 0:
-#                pickle.dump(loss_history, open('loss_history.pkl', 'wb'))
-#                pickle.dump(acc_history, open('acc_history.pkl', 'wb'))
-#                pickle.dump(structure_history, open('structure_history.pkl', 'wb'))
-#                print('[INFO] Saved loss, accuracy, and structure history.')
-#
+
+            if i_epoch % self.params['pickle_every'] == 0:
+                pickle.dump(loss_history, open('loss_history.pkl', 'wb'))
+                pickle.dump(acc_history, open('acc_history.pkl', 'wb'))
+                pickle.dump(structure_history, open('structure_history.pkl', 'wb'))
+                print('[INFO] Saved loss, accuracy, and structure history.')
+
 #            if i_epoch % self.params['alternate_every'] == 0:
 #                self.switch_train_mode()
             
@@ -274,8 +274,8 @@ class RRNNTrainer:
         # save batch history
         if isinstance(i_epoch, int):    # train
             file = open(BATCH_HISTORY_DIR+'%d.txt'%i_batch, 'a')
-        elif i_epoch == 'val':
-            file = open(BATCH_HISTORY_DIR+'val.txt', 'a')
+        elif i_epoch.startswith('val'): # val
+            file = open(BATCH_HISTORY_DIR+'%s.txt'%i_epoch, 'a')
         else:
             raise ValueError
         for i_time_step in range(time_steps):
@@ -286,7 +286,7 @@ class RRNNTrainer:
         return losses, accuracy, structures_list
     
     # TODO: fix it 
-    def validate(self, verbose=True):
+    def validate(self, i_epoch, verbose=True):
         """Runs inference over the validation set periodically during training.
 
         Prints the validation loss and accuracy to their respective files.
@@ -299,7 +299,7 @@ class RRNNTrainer:
         for i_batch in range(val_size):
             X = X_val[i_batch, :, :].reshape(1, time_steps, hidden_size)
             y = y_val[i_batch, :, :].reshape(1, time_steps, -1)
-            loss, acc, _ = self.train_step_stage_searching(X, y, 'val', i_batch)
+            loss, acc, _ = self.train_step_stage_searching(X, y, 'val%d'%i_epoch, i_batch)
             losses[i_batch, :] = loss
             accuracy.append(acc)
             
@@ -415,27 +415,28 @@ if __name__ == '__main__':
     if platform.system() == 'Windows':
         dirname = 'test %s'%(time.asctime().replace(':', '_'))
         params = {
-            "learning_rate": 1e-4,
-            "multiplier": 1,
-            "lambdas": [1, 0, 1e-8, 0.003],
-            "nb_train": 64,
-            "nb_val": 10,
-            "validate_every": 1,
-            "epochs": 20,
-            "loss2_margin": 1,
-            "scoring_hidden_size": 64,
-            "batch_size": 64,
-            "epochs_per_checkpoint": 1,
-            "optimizer": "adam",
-            "embeddings": "gensim",
-            "max_grad": 1,
-            "initial_train_mode": "weights",
-            "alternate_every": 1,
-            "warm_start": False,
-            "weights_file": "epoch_0.pt",
-            "pretrained_weights": False,
-            "device": "cpu"
-        }
+                    "learning_rate": 1e-4,
+                    "multiplier": 1,
+                    "lambdas": [1, 0, 1e-8, 0.003],
+                    "nb_train": 64,
+                    "nb_val": 10,
+                    "validate_every": 1,
+                    "epochs": 2,
+                    "loss2_margin": 1,
+                    "scoring_hidden_size": 64,
+                    "batch_size": 64,
+                    "epochs_per_checkpoint": 1,
+                    "pickle_every": 1,
+                    "optimizer": "adam",
+                    "embeddings": "gensim",
+                    "max_grad": 1,
+                    "initial_train_mode": "weights",
+                    "alternate_every": 1,
+                    "warm_start": False,
+                    "weights_file": "epoch_0.pt",
+                    "pretrained_weights": False,
+                    "device": "cpu"
+                }
         if not params['warm_start']:
             os.mkdir(dirname)
         os.chdir(dirname)
