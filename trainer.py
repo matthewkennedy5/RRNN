@@ -176,22 +176,22 @@ class RRNNTrainer:
                     t.set_postfix(loss=losses)
                     t.update()
             
-            # TODO: use this after fixing the validate function
-#            if i_epoch % self.params['validate_every'] == 0:
-#                if len(self.val_data) > 0:
-#                    self.validate()
+#             TODO: use this after fixing the validate function
+            if i_epoch % self.params['validate_every'] == 0:
+                if len(self.val_data) > 0:
+                    self.validate()
 
             if i_epoch % self.params['epochs_per_checkpoint'] == 0:
                 self.checkpoint_model(i_epoch+1)
-
-            if i_epoch % self.params['pickle_every'] == 0:
-                pickle.dump(loss_history, open('loss_history.pkl', 'wb'))
-                pickle.dump(acc_history, open('acc_history.pkl', 'wb'))
-                pickle.dump(structure_history, open('structure_history.pkl', 'wb'))
-                print('[INFO] Saved loss, accuracy, and structure history.')
-
-            if i_epoch % self.params['alternate_every'] == 0:
-                self.switch_train_mode()
+#
+#            if i_epoch % self.params['pickle_every'] == 0:
+#                pickle.dump(loss_history, open('loss_history.pkl', 'wb'))
+#                pickle.dump(acc_history, open('acc_history.pkl', 'wb'))
+#                pickle.dump(structure_history, open('structure_history.pkl', 'wb'))
+#                print('[INFO] Saved loss, accuracy, and structure history.')
+#
+#            if i_epoch % self.params['alternate_every'] == 0:
+#                self.switch_train_mode()
             
             # TODO: switch between training stages
                 
@@ -272,15 +272,18 @@ class RRNNTrainer:
         accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*y.shape[0])
 
         # save batch history
-        file = open(BATCH_HISTORY_DIR+'%d.txt'%i_batch, 'a')
+        if isinstance(i_epoch, int):    # train
+            file = open(BATCH_HISTORY_DIR+'%d.txt'%i_batch, 'a')
+        elif i_epoch == 'val':
+            file = open(BATCH_HISTORY_DIR+'val.txt', 'a')
+        else:
+            raise ValueError
         for i_time_step in range(time_steps):
             lst = [i_epoch, i_batch, i_time_step, loss1_list[i_time_step].item(), structures_list[i_time_step]]
             file.write(';'.join([str(s) for s in lst])+'\n')
         file.close()
         
         return losses, accuracy, structures_list
-        
-    
     
     # TODO: fix it 
     def validate(self, verbose=True):
@@ -289,8 +292,19 @@ class RRNNTrainer:
         Prints the validation loss and accuracy to their respective files.
         """
         X_val, y_val = next(iter(self.val_data))
-        if self.current_stage == 'searching':
-            losses, accuracy, _ = self.train_step_stage_searching(X_val, y_val)
+        val_size, time_steps, hidden_size = X_val.shape
+        losses = np.zeros([val_size, N_LOSS_TERMS])
+        accuracy = []
+
+        for i_batch in range(val_size):
+            X = X_val[i_batch, :, :].reshape(1, time_steps, hidden_size)
+            y = y_val[i_batch, :, :].reshape(1, time_steps, -1)
+            loss, acc, _ = self.train_step_stage_searching(X, y, 'val', i_batch)
+            losses[i_batch, :] = loss
+            accuracy.append(acc)
+            
+        losses = losses.mean(axis=0).tolist()
+        accuracy = np.mean(accuracy)
 
         print('val_loss:', printable(losses), 'val_acc:', accuracy)
         with open(VAL_LOSS_FILE, 'a') as f:
@@ -404,8 +418,8 @@ if __name__ == '__main__':
             "learning_rate": 1e-4,
             "multiplier": 1,
             "lambdas": [1, 0, 1e-8, 0.003],
-            "nb_train": 1000,
-            "nb_val": 200,
+            "nb_train": 64,
+            "nb_val": 10,
             "validate_every": 1,
             "epochs": 20,
             "loss2_margin": 1,
