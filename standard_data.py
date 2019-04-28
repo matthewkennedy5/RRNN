@@ -205,6 +205,7 @@ class EnWik8Clean(data.Dataset):
     def __getitem__(self, index):
         return (self.X[index], self.y[index])
 
+
 class PennTreebank(data.Dataset):
     """Dataset containing the Penn Treebank word-level language modelling data.
 
@@ -221,7 +222,7 @@ class PennTreebank(data.Dataset):
         if subset == 'train':
             self.data = train
         elif subset == 'val':
-            self.data = val
+            self.data = valid
         elif subset == 'test':
             self.data = test
         self.embeddings = self.data.dataset.fields['text'].vocab.vectors
@@ -243,3 +244,44 @@ class PennTreebank(data.Dataset):
     def __getitem__(self, index):
         return (self.X[index], self.y[index])
 
+class SST(data.Dataset):
+    """Dataset containing the Stanford Sentiment Treebank (SST) dataset.
+
+    Inputs:
+        subset - either 'train', 'val', or 'test'.
+        n_data - how many data points to sample.
+        device - torch.device on which to store the data
+    """
+    def __init__(self, subset, n_data, device):
+        train, valid, test = datasets.SST.iters(batch_size=1, device=device,
+                                                vectors='glove.6B.100d')
+
+        if subset == 'train':
+            self.data = train
+        elif subset == 'val':
+            self.data = valid
+        elif subset == 'test':
+            self.data = test
+        self.embeddings = self.data.dataset.fields['text'].vocab.vectors
+
+        self.X = []
+        self.y = []
+        MAX_LENGTH = 52     # Longest entry in the SST dataset
+        embed_size = self.embeddings.shape[1]
+        for sample in self.data:
+            # Zero pad the sample since they have different lengths. I'm zero
+            # padding the front of each sequence.
+            embedded_sample = self.embeddings[sample.text]
+            newX = torch.zeros(MAX_LENGTH, 1, embed_size)
+            n_pad = MAX_LENGTH - embedded_sample.shape[0]
+            self.X.append(newX)
+            self.y.append(sample.label - 1)     # Convert from 1, 2, 3 to 0, 1, 2
+
+        self.X = torch.stack(self.X[:n_data]).squeeze().to(device)
+        self.y = torch.stack(self.y[:n_data]).squeeze().to(device)
+
+    def __len__(self):
+        return self.X.shape[0]
+
+    def __getitem__(self, index):
+        return self.X[index], self.y[index]
