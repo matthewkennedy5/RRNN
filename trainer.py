@@ -285,7 +285,6 @@ class RRNNTrainer:
         
         return losses, accuracy, structures_list
     
-    # TODO: fix it 
     def validate(self, i_epoch, verbose=True):
         """Runs inference over the validation set periodically during training.
 
