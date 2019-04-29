@@ -163,7 +163,7 @@ class RRNNTrainer:
                     losses = printable(losses)
                     loss_history.append(losses)
                     acc_history.append(acc)
-                    # structure_history.append(structures)
+                    structure_history.append(structures)
 
                     t.set_postfix(loss=losses)
                     t.update()
@@ -230,11 +230,9 @@ class RRNNTrainer:
         # calculate loss terms
         loss1 = 0
         if lamb1 != 0:
-            if y.dim() == 1:    # There is one output at the end of the sequence
-                loss1 = self.loss(pred_chars_batch[:, -1, :], y)
-            else:   # There is output for every time step
-                for i_time in range(time_steps):
-                    loss1 += self.loss(pred_chars_batch[:, i_time, :], y[:, i_time])
+            for i_time in range(time_steps):
+                # loss1 += self.loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1))
+                loss1 += self.loss(pred_chars_batch[:, i_time, :], y[:, i_time])
 
         loss2 = 0
         if lamb2 != 0:
@@ -260,10 +258,10 @@ class RRNNTrainer:
             loss4 /= batch_size
 
         losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
-        if y.dim() == 1:    # SST dataset
-            accuracy = (pred_chars_batch.argmax(dim=2)[:, -1] == y).sum().item() / float(batch_size)
-        else:
-            accuracy = (pred_chars_batch.argmax(dim=2) == y).sum().item() / float(time_steps * batch_size)
+        # accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*batch_size)
+        accuracy = (pred_chars_batch.argmax(dim=2)==y).sum().item()/float(time_steps*batch_size)
+        bpc1 = -np.log2(accuracy)
+        bpc2 = loss1.item()/(time_steps*np.log(2))
 
         return losses, accuracy, structures_list
 
@@ -332,20 +330,12 @@ def run(params):
         dirname = os.getcwd()
         os.chdir('..')
         train_set = standard_data.PennTreebank(subset='train', n_data=params['nb_train'], device=device)
-        validation_set = standard_data.PennTreebank(subset='val', n_data=params['nb_val'], device=device)
+        validation_set = standard_data.EnWik8Clean(subset='val', n_data=params['nb_val'], device=device)
         os.chdir(dirname)
         num_classes = 10001
-    elif params['dataset'] == 'sst':
-        print('[INFO] Loading the SST dataset.')
-        dirname = os.getcwd()
-        os.chdir('..')
-        train_set = standard_data.SST(subset='train', n_data=params['nb_train'], device=device)
-        validation_set = standard_data.SST(subset='val', n_data=params['nb_val'], device=device)
-        os.chdir(dirname)
-        num_classes = 3
     else:
         raise ValueError('Invalid dataset name. The "dataset" field in the JSON parameter file'
-                         ' must be "wiki", "ptb", or "sst".')
+                         ' must be "wiki" or "ptb".')
     train_dataloader = DataLoader(train_set, batch_size=params['batch_size'], shuffle=True)
     val_dataloader = DataLoader(validation_set, batch_size=params['nb_val'], shuffle=False)
 
