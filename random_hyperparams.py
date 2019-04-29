@@ -34,7 +34,7 @@ params['lambdas'] = (
     10 ** np.random.uniform(-6, -3)
 )
 params['loss2_margin'] = 10 ** np.random.uniform(-1, 1)
-params['scoring_hidden_size'] = int(10 ** np.random.uniform(0, 3))
+params['scoring_hidden_size'] = int(10 ** np.random.uniform(1, 3))
 params['batch_size'] = int(10 ** np.random.uniform(0, 3))
 params['max_grad'] = 10 ** np.random.uniform(-1, 2)
 params['alternate_every'] = int(10 ** np.random.uniform(0, 1))
