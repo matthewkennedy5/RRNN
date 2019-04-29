@@ -274,11 +274,13 @@ class SST(data.Dataset):
             embedded_sample = self.embeddings[sample.text]
             newX = torch.zeros(MAX_LENGTH, 1, embed_size)
             n_pad = MAX_LENGTH - embedded_sample.shape[0]
+            newX[n_pad:, :, :] = embedded_sample
             self.X.append(newX)
             self.y.append(sample.label - 1)     # Convert from 1, 2, 3 to 0, 1, 2
 
         self.X = torch.stack(self.X[:n_data]).squeeze().to(device)
         self.y = torch.stack(self.y[:n_data]).squeeze().to(device)
+        # TODO: Normalize data for this and PTB based on the train set
 
     def __len__(self):
         return self.X.shape[0]
