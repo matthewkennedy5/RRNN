@@ -32,7 +32,9 @@ def retrieve_unary_operation(s):
     elif s == 'minus':
         unary = lambda x: 1-x
     elif s == 'identity':
-        unary = lambda x: x    
+        unary = lambda x: x   
+    elif s == 'relu':
+        unary = lambda x: torch.relu(x)
     else:
         raise ValueError('No such unary function %s!'%s)
     return unary
