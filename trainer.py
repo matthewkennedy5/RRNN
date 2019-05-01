@@ -1,10 +1,11 @@
 import os, sys, platform
 import time
 import torch
-from torch import nn
+import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader
 import json
+
 
 import tree_methods
 from GRU import RRNNforGRU
@@ -51,8 +52,11 @@ class RRNNTrainer:
         self.loss = torch.nn.CrossEntropyLoss()
 
         self.current_stage = 'searching' # another choice is 'fixing'
-        self.switching_time = [20, 1020, 1040, 2040, 2060, 3060, 3080, 4080]
-        
+        s1 = params['stage_searching_epochs']
+        s2 = params['stage_fixing_epochs']
+        self.switching_time = [(s1+s2)*i for i in range(20)]+[(s1+s2)*i+s1 for i in range(20)]
+        self.switching_time = [2]
+
         self.time_steps = 20
         self.num_batches = params['nb_train']//params['batch_size']
         
@@ -147,7 +151,9 @@ class RRNNTrainer:
                     t.set_postfix(loss=printable(losses))
                     t.update()
 
-            if i_epoch % self.params['epochs_per_checkpoint'] == 0:
+            if self.current_stage == 'searching':
+                self.checkpoint_model(i_epoch+1)
+            if self.current_stage == 'fixing' and (i_epoch+1) % 10 == 0:
                 self.checkpoint_model(i_epoch+1)
 
             if (i_epoch+1) in self.switching_time:
@@ -174,7 +180,7 @@ class RRNNTrainer:
         # calculate loss terms
         loss1 = 0
         for i_time in range(time_steps):
-            loss1 += self.loss(pred_chars_batch[:, i_time, :], torch.argmax(y[:, i_time, :], dim=1))
+            loss1 += self.loss(pred_chars_batch[:, i_time, :], y[:, i_time])
         
         loss3 = 0
         for param in self.model.parameters():
@@ -182,7 +188,7 @@ class RRNNTrainer:
         
         # report loss and accuracy
         losses = [lamb1*loss1, lamb3*loss3]
-        accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*y.shape[0])
+        accuracy = (pred_chars_batch.argmax(dim=2)==y).sum().item()/float(time_steps*X.shape[0])
         
         return losses, accuracy, optimal_structure
 
@@ -211,7 +217,7 @@ class RRNNTrainer:
         # calculate loss terms
         loss1_list = []
         for i_time in range(y.shape[1]):
-            loss1_list.append(self.loss(pred_chars_batch[:, i_time, :], y[:, i_time]    )
+            loss1_list.append(self.loss(pred_chars_batch[:, i_time, :], y[:, i_time]))
         loss1 = sum(loss1_list)
 
         loss2 = 0
@@ -379,7 +385,7 @@ if __name__ == '__main__':
         params = {
                     "learning_rate": 1e-4,
                     "multiplier": 1,
-                    "lambdas": [1, 0, 1e-8, 0.003],
+                    "lambdas": [1, 1e-3, 1e-3, 1e-5],
                     "nb_train": 128,
                     "nb_val": 10,
                     "validate_every": 1,
@@ -398,7 +404,9 @@ if __name__ == '__main__':
                     "pretrained_weights": False,
                     "device": "cpu",
                     'write_every_epoch': True,
-                    'write_every_batch': True
+                    'write_every_batch': True,
+                    'stage_searching_epochs': 20,
+                    'stage_fixing_epochs': 1000,
                 }
         if not params['warm_start']:
             os.mkdir(dirname)
