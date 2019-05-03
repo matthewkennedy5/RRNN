@@ -58,7 +58,7 @@ params = {  "learning_rate": 1e-4,
 if len(sys.argv) != 2:
     dirname = 'test %s'%(time.asctime().replace(':', '_'))
 else:
-    dirname = 'test %s'%(time.asctime().replace(':', '_'))    
+    dirname = sys.argv[1]
 if not params['warm_start']:
     os.mkdir(dirname)
 os.chdir(dirname)
