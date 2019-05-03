@@ -47,7 +47,7 @@ class RRNNTrainer:
 
         for i_batch in range(self.num_batches):
             for i_time_step in range(self.time_steps):
-                history_file_name = self.params['STRUCTURE_HISTORY_DIR'] + 'structure_%d_%d.txt'%(i_batch, i_time_step)
+                history_file_name = self.params['STRUCTURE_HISTORY_DIR'] + 'structure_batch%d_time%d.txt'%(i_batch, i_time_step)
                 if not os.path.isfile(history_file_name):
                     raise ValueError('No such batch file')
             
@@ -65,7 +65,7 @@ class RRNNTrainer:
                 optimal_structures[i_batch][i_time_step] = opt_structure
                 optimal_epochs[i_batch][i_time_step] = opt_epoch
                 
-        optimal_file_name = self.params['STRUCTURE_OPTIMAL_DIR'] + 'search_epoch_%d.txt'%current_epoch
+        optimal_file_name = self.params['STRUCTURE_OPTIMAL_DIR'] + 'search_at_epoch%d.txt'%current_epoch
         with open(optimal_file_name, 'a') as f:
             for i_batch in range(self.num_batches):
                 for i_time_step in range(self.time_steps):
@@ -229,7 +229,7 @@ class RRNNTrainer:
 
         # save batch structure history
         for i_time_step in range(time_steps):
-            with open(self.params['STRUCTURE_HISTORY_DIR']+'structure_%d_%d.txt'%(i_batch, i_time_step), 'a') as f:
+            with open(self.params['STRUCTURE_HISTORY_DIR']+'structure_batch%d_time%d.txt'%(i_batch, i_time_step), 'a') as f:
                 lst = [i_epoch, loss1_list[i_time_step].item(), structures_list[i_time_step]]
                 f.write(';'.join([str(s) for s in lst])+'\n')
         
