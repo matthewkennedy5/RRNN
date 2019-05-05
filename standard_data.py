@@ -11,12 +11,12 @@ from dataloader import element_dict
 
 dirname = os.path.dirname(os.path.realpath(__file__))
 CORPUS_FILENAME = os.path.join(dirname, 'enwik8_clean.txt')
-SAVE_FILE = os.path.join(dirname, '10k_data.pkl')
+SAVE_FILE = os.path.join(dirname, '10k_data_more.pkl')
 CHUNK_LENGTH = 20
 EMBEDDINGS = 'gensim'
 N_TRAIN = 10000
-N_VAL = 1000
-N_TEST = 2000
+N_VAL = 10000
+N_TEST = 20000
 N_CHARS = len(element_dict)
 
 # Load the embed dictionary that maps characters to vectors
