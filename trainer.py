@@ -308,7 +308,7 @@ def run(params):
 
     start = time.time()
     device = torch.device(params['device'])
-    gru_model = torch.load('../gru_parameters.pkl').to(device)
+    gru_model = torch.load('../gru_parameters_new.pt').to(device)
 
     if params['warm_start']:
         weights = params['weights_file']
