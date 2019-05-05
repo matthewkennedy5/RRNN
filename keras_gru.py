@@ -1,36 +1,49 @@
+import os
 from pprint import pprint
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import GRU, Dense, TimeDistributed, Softmax
 from tensorflow.keras.regularizers import l2
 import pdb
+import torch
 from matplotlib import pyplot as plt
 import numpy as np
 import standard_data
 from tqdm import trange
+from torch.utils.data import DataLoader
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'    # To select which GPU to use.
 FILENAME = 'enwik8_clean.txt'
 CHUNK_LENGTH = 20
-# EPOCHS = 10
 HIDDEN_SIZE = 100
-N_CHARS = 27
-# BATCH_SIZE = 16
-# LEARNING_RATE = 1e-2
-# L2_WEIGHT_DECAY = 0
 DTYPE = np.float32
 N_RANDOM_SEARCH = 100
+DEVICE = torch.device('cpu')
+N_TRAIN = 10000
+N_VAL = 10000
 
 
-print('[INFO] Loading data.')
-data = standard_data.load_standard_data()
-(X_train, y_train), (X_val, y_val), (X_test, y_test) = data
-
-X_train = X_train.numpy().astype(DTYPE)
-y_train = y_train.numpy()
-X_val = X_val.numpy().astype(DTYPE)
-y_val = y_val.numpy()
-X_test = X_test.numpy().astype(DTYPE)
-y_test = y_test.numpy()
+def load_data(dataset):
+    print('[INFO] Loading the', dataset, 'dataset.')
+    if dataset == 'ptb':
+        train_data = standard_data.PennTreebank('train', n_data=N_TRAIN, device=DEVICE)
+        train_dataloader = DataLoader(train_data, batch_size=len(train_data))
+        val_data = standard_data.PennTreebank('val', n_data=N_VAL, device=DEVICE)
+        val_dataloader = DataLoader(val_data, batch_size=len(val_data))
+        X_train = next(iter(train_dataloader))[0].numpy()
+        y_train = next(iter(train_dataloader))[1].numpy()
+        X_val = next(iter(val_dataloader))[0].numpy()
+        y_val = next(iter(val_dataloader))[1].numpy()
+    elif dataset == 'wiki':
+        data = standard_data.load_standard_data()
+        (X_train, y_train), (X_val, y_val), (X_test, y_test) = data
+        X_train = X_train.numpy().astype(DTYPE)
+        y_train = y_train.numpy()
+        X_val = X_val.numpy().astype(DTYPE)
+        y_val = y_val.numpy()
+        X_test = X_test.numpy().astype(DTYPE)
+        y_test = y_test.numpy()
+    return (X_train, y_train), (X_val, y_val)
 
 
 def random_params():
@@ -39,25 +52,33 @@ def random_params():
     epochs = 20
     batch_size = int(2 ** np.random.uniform(3, 5))
     hidden_size = 100
-    params = {'reg': reg, 'learning rate': learning_rate, 'epochs': epochs,
-              'batch size': batch_size, 'hidden_size': hidden_size}
+    params = {'reg': reg, 'learning_rate': learning_rate, 'epochs': epochs,
+              'batch_size': batch_size, 'hidden_size': hidden_size}
     return params
 
+
 def run(params):
+    (X_train, y_train), (X_val, y_val) = load_data(params['dataset'])
+    if params['dataset'] == 'wiki':
+        n_out = 27
+    elif params['dataset'] == 'ptb':
+        n_out = 10001
     model = Sequential([
                 GRU(params['hidden_size'], return_sequences=True,
                     input_shape=(CHUNK_LENGTH, X_train.shape[2]),
                     kernel_regularizer=l2(params['reg']),
                     recurrent_regularizer=l2(params['reg'])),
-                TimeDistributed(Dense(N_CHARS, kernel_regularizer=l2(params['reg']))),
+                TimeDistributed(Dense(n_out, kernel_regularizer=l2(params['reg']))),
                 Softmax()
             ])
 
-    adam = tf.keras.optimizers.Adam(lr=params['learning rate'])
-    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
-    history = model.fit(X_train, y_train, batch_size=params['batch size'], epochs=params['epochs'],
+    adam = tf.keras.optimizers.Adam(lr=params['learning_rate'])
+    model.compile(optimizer=adam, loss='sparse_categorical_crossentropy', metrics=['acc'])
+    y_train = np.expand_dims(y_train, 2)
+    y_val = np.expand_dims(y_val, 2)
+    history = model.fit(X_train, y_train, batch_size=params['batch_size'], epochs=params['epochs'],
                         validation_data=(X_val, y_val))
-    model.save('weights.h5')
+    # model.save('weights.h5')
     return history
 
 
@@ -129,24 +150,24 @@ if __name__=='__main__':
 
     # Best wiki params
     # params = {
-    #     'batch size': 10,
+    #     'batch_size': 10,
     #     'epochs': 34,
-    #     'learning rate': 0.0005193665291051191,
+    #     'learning_rate': 0.0005193665291051191,
     #     'reg': 7.017320195906407e-07,
     #     'hidden_size': 100,
     #  }
 
     params = {
-        'batch_size': 32,
+        'batch_size': 16,
         'epochs': 10,
-        'learning_rate': 1e-3,
-        'reg': 0
+        'learning_rate': 1e-2,
+        'reg': 0,
+        'hidden_size': 100,
+        'dataset': 'ptb'
     }
+    run(params)
 
-    history = run(params)
-    # plot_results(history)
-    # plot_bpc(history)
-    random_hyperparam_search(100)
+    # random_hyperparam_search(100)
 
 
 
@@ -166,5 +187,5 @@ if __name__=='__main__':
 # [INFO] Best hyperparameters found:
 # {'batch size': 18,
 #  'epochs': 10,
-#  'learning rate': 0.0017111124938516654,
+#  'learning_rate': 0.0017111124938516654,
 #  'reg': 3.5989197176496724e-07}
