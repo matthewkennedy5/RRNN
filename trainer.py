@@ -128,6 +128,9 @@ class RRNNTrainer:
         save_name = 'checkpoint_' + str(epoch) + '_' + str(time.time()) + '.pt'
         torch.save(self.model.state_dict(), save_name)
         print('[INFO] Checkpointed the model.')
+        torch.save(self.weights_optimizer.state_dict(), 'weights_optimizer.pt')
+        torch.save(self.scoring_optimizer.state_dict(), 'scoring_optimizer.pt')
+        print('[INFO] Saved the optimizer state.')
 
     def train(self, n_epochs):
         """Trains the RRNN for the given number of epochs.
