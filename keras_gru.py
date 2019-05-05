@@ -3,7 +3,6 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import GRU, Dense, TimeDistributed, Softmax
 from tensorflow.keras.regularizers import l2
-import torch
 import pdb
 from matplotlib import pyplot as plt
 import numpy as np
@@ -39,7 +38,7 @@ def random_params():
     learning_rate = 10 ** np.random.uniform(-4, -1)
     epochs = 20
     batch_size = int(2 ** np.random.uniform(3, 5))
-    hidden_size = int(2 ** np.random.uniform(3, 11))
+    hidden_size = 100
     params = {'reg': reg, 'learning rate': learning_rate, 'epochs': epochs,
               'batch size': batch_size, 'hidden_size': hidden_size}
     return params
@@ -58,6 +57,7 @@ def run(params):
     model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
     history = model.fit(X_train, y_train, batch_size=params['batch size'], epochs=params['epochs'],
                         validation_data=(X_val, y_val))
+    model.save('weights.h5')
     return history
 
 
@@ -127,15 +127,23 @@ def plot_bpc(history):
 
 if __name__=='__main__':
 
+    # Best wiki params
     # params = {
     #     'batch size': 10,
-    #     'epochs': 40,
+    #     'epochs': 34,
     #     'learning rate': 0.0005193665291051191,
     #     'reg': 7.017320195906407e-07,
-    #     'hidden_size': 50
+    #     'hidden_size': 100,
     #  }
 
-    # history = run(params)
+    params = {
+        'batch_size': 32,
+        'epochs': 10,
+        'learning_rate': 1e-3,
+        'reg': 0
+    }
+
+    history = run(params)
     # plot_results(history)
     # plot_bpc(history)
     random_hyperparam_search(100)
