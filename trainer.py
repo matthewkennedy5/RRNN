@@ -238,6 +238,7 @@ class RRNNTrainer:
         if lamb2 != 0:
             desired_margin = params['loss2_margin']
             loss2 = (desired_margin - margins_batch.clamp(max=desired_margin)).sum().div_(desired_margin)
+            loss2 /= batch_size
 
         loss3 = 0
         if lamb3 != 0:
@@ -249,6 +250,7 @@ class RRNNTrainer:
             pred_tree_list = torch.cat(pred_tree_list, dim=1)
             target_tree_list = torch.cat(target_tree_list, dim=1)
             loss4 = (pred_tree_list-target_tree_list).norm()**2
+            loss4 /= batch_size
 
         losses = [lamb1*loss1, lamb2*loss2, lamb3*loss3, lamb4*loss4]
         # accuracy = (pred_chars_batch.argmax(dim=2)==y.argmax(dim=2)).sum().item()/float(time_steps*batch_size)
