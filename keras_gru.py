@@ -46,14 +46,14 @@ def load_data(dataset):
     return (X_train, y_train), (X_val, y_val)
 
 
-def random_params():
-    reg = 10 ** np.random.uniform(-8, -6)
+def random_params(dataset):
+    reg = 10 ** np.random.uniform(-16, 0)
     learning_rate = 10 ** np.random.uniform(-4, -1)
-    epochs = 20
-    batch_size = int(2 ** np.random.uniform(3, 5))
+    epochs = 5
+    batch_size = int(2 ** np.random.uniform(3, 8))
     hidden_size = 100
     params = {'reg': reg, 'learning_rate': learning_rate, 'epochs': epochs,
-              'batch_size': batch_size, 'hidden_size': hidden_size}
+              'batch_size': batch_size, 'hidden_size': hidden_size, 'dataset': dataset}
     return params
 
 
@@ -82,11 +82,11 @@ def run(params):
     return history
 
 
-def random_hyperparam_search(n_runs):
+def random_hyperparam_search(n_runs, dataset):
     best_params = None
     lowest_val_loss = np.Inf
     for i in trange(N_RANDOM_SEARCH):
-        params = random_params()
+        params = random_params(dataset)
         print('-'*70)
         print('[INFO] Trying the following hyperparameters:')
         pprint(params)
@@ -159,15 +159,15 @@ if __name__=='__main__':
 
     params = {
         'batch_size': 16,
-        'epochs': 10,
+        'epochs': 5,
         'learning_rate': 1e-2,
-        'reg': 0,
+        'reg': 1e-4,
         'hidden_size': 100,
         'dataset': 'ptb'
     }
     run(params)
 
-    # random_hyperparam_search(100)
+    # random_hyperparam_search(100, dataset='ptb')
 
 
 
