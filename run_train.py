@@ -68,7 +68,7 @@ for path in [params['STRUCTURE_HISTORY_DIR'], params['STRUCTURE_OPTIMAL_DIR'], p
 # Assuming we are already in the directory where the output files should be
 pickle.dump(params, open(params['HYPERPARAM_FILE'], 'wb'))
 with open('hyperparameters.txt', 'w') as f:
-    f.write(str(params)
+    f.write(str(params))
 print('[INFO] Saved hyperparameters.')
 
 device = torch.device(params['device'])
