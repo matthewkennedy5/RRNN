@@ -8,6 +8,7 @@ from gensim.models import Word2Vec
 from torch.utils import data
 from torchtext import data, datasets
 from dataloader import element_dict
+from torch.utils.data import DataLoader
 
 dirname = os.path.dirname(os.path.realpath(__file__))
 CORPUS_FILENAME = os.path.join(dirname, 'enwik8_clean.txt')
@@ -174,6 +175,20 @@ def load_standard_data():
     return data
 
 
+def get_train_stats(dataset):
+    """Returns the mean and std of the train set as a 100-dimensional vector."""
+    if dataset == 'ptb':
+        train = PennTreebank('train', n_data=N_TRAIN, normalize=False)
+    elif dataset == 'sst':
+        train = SST('train', n_data=N_TRAIN, normalize=False)
+    loader = DataLoader(train, batch_size=len(train))
+    X_train, y_train = next(iter(loader))
+    X_train = torch.reshape(X_train, (-1, 100))
+    mean = torch.mean(X_train, dim=0)
+    std = torch.std(X_train, dim=0)
+    return mean, std
+
+
 class EnWik8Clean(data.Dataset):
     """Dataset containing the enwik8_clean.txt 27-character Wikipedia data.
 
@@ -184,7 +199,7 @@ class EnWik8Clean(data.Dataset):
         device
     """
 
-    def __init__(self, subset, n_data, device):
+    def __init__(self, subset, n_data, device=torch.device('cpu')):
         train, val, test = load_standard_data()
         if subset == 'train':
             self.X, self.y = train
@@ -213,8 +228,9 @@ class PennTreebank(data.Dataset):
         subset - either 'train', 'val', or 'test'.
         n_data - how many data points to sample.
         device - torch.device on which to store the data
+        normalize - Whether to normalize the data based on the training statistics.
     """
-    def __init__(self, subset, n_data, device):
+    def __init__(self, subset, n_data, device=torch.device('cpu'), normalize=True):
         train, valid, test = datasets.PennTreebank.iters(batch_size=1,
                                                          bptt_len=CHUNK_LENGTH,
                                                          device=device,
@@ -238,6 +254,10 @@ class PennTreebank(data.Dataset):
         self.X = torch.stack(self.X[:n_data]).squeeze().to(device)
         self.y = torch.stack(self.y[:n_data]).squeeze().to(device)
 
+        if normalize:
+            mean, std = get_train_stats('ptb')
+            self.X = (self.X - mean) / std
+
     def __len__(self):
         return self.X.shape[0]
 
@@ -252,7 +272,7 @@ class SST(data.Dataset):
         n_data - how many data points to sample.
         device - torch.device on which to store the data
     """
-    def __init__(self, subset, n_data, device):
+    def __init__(self, subset, n_data, device='cpu', normalize=True):
         train, valid, test = datasets.SST.iters(batch_size=1, device=device,
                                                 vectors='glove.6B.100d')
 
@@ -280,10 +300,13 @@ class SST(data.Dataset):
 
         self.X = torch.stack(self.X[:n_data]).squeeze().to(device)
         self.y = torch.stack(self.y[:n_data]).squeeze().to(device)
-        # TODO: Normalize data for this and PTB based on the train set
+        if normalize:
+            mean, std = get_train_stats('sst')
+            self.X = (self.X - mean) / std
 
     def __len__(self):
         return self.X.shape[0]
 
     def __getitem__(self, index):
         return self.X[index], self.y[index]
+
