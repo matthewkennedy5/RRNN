@@ -55,7 +55,7 @@ params = {  "learning_rate": 1e-4,
 
 # output folder
 if len(sys.argv) != 2:
-    dirname = 'test %s'%(time.asctime().replace(':', '_'))
+    dirname = 'test_%s'%(time.asctime().replace(':', '_').replace(' ', '_'))
 else:
     dirname = sys.argv[1]
 if not params['warm_start']:
@@ -68,7 +68,8 @@ for path in [params['STRUCTURE_HISTORY_DIR'], params['STRUCTURE_OPTIMAL_DIR'], p
 # Assuming we are already in the directory where the output files should be
 pickle.dump(params, open(params['HYPERPARAM_FILE'], 'wb'))
 with open('hyperparameters.txt', 'w') as f:
-    f.write(str(params))
+    for key in params.keys():
+        f.write('%s: %s\n'%(str(key), str(params[key])))
 print('[INFO] Saved hyperparameters.')
 
 device = torch.device(params['device'])
