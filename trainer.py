@@ -26,16 +26,17 @@ class RRNNTrainer:
         elif params['optimizer'] == 'sgd':
             optimizer = torch.optim.SGD(self.model.parameters(), lr=params['learning_rate'])
         self.optimizer = optimizer
-
         self.params = params
         self.lamb1, self.lamb2, self.lamb3, self.lamb4 = params['lambdas']
         self.loss = torch.nn.CrossEntropyLoss()
 
         self.current_stage = 'searching' # another choice is 'fixing'
-        s1 = params['stage_searching_epochs']
-        s2 = params['stage_fixing_epochs']
-        self.switching_time = sorted([(s1+s2)*i for i in range(1, 20)]+[(s1+s2)*i+s1 for i in range(20)])
-#        self.switching_time = [2]
+        try:
+            self.switching_time = params['switching_time']
+        except:
+            s1 = params['stage_searching_epochs']
+            s2 = params['stage_fixing_epochs']
+            self.switching_time = sorted([(s1+s2)*i for i in range(1, 20)]+[(s1+s2)*i+s1 for i in range(20)])
 
         self.time_steps = 20
         self.num_batches = params['nb_train']//params['batch_size']

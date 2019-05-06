@@ -23,7 +23,8 @@ VOCAB_SIZE = 27
 HIDDEN_SIZE = 100
 params = {  "learning_rate": 1e-4,
             "lambdas": [1, 1e-3, 1e-3, 1e-5],
-            "nb_train": 64,
+#            "switching_epochs": [20, 1020, 1040, 2040, ],
+            "nb_train": 64*10,
             "nb_val": 1,
             "validate_every": 1,
             "epochs": 10200,
@@ -73,7 +74,7 @@ with open('hyperparameters.txt', 'w') as f:
 print('[INFO] Saved hyperparameters.')
 
 device = torch.device(params['device'])
-gru_model = torch.load('../gru_parameters.pkl').to(device)
+gru_model = torch.load('../gru_parameters_new.pt').to(device)
 model = RRNNforGRU(HIDDEN_SIZE, VOCAB_SIZE, batch_size=params['batch_size'],
                    scoring_hsize=params['scoring_hidden_size']).to(device)
 
