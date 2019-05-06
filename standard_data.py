@@ -19,6 +19,7 @@ N_TRAIN = 10000
 N_VAL = 10000
 N_TEST = 20000
 N_CHARS = len(element_dict)
+NORM_STATS_FILE = 'normalization.pkl'
 
 # Load the embed dictionary that maps characters to vectors
 word2vec_model = Word2Vec.load('train20_embedding')
@@ -177,16 +178,30 @@ def load_standard_data():
 
 def get_train_stats(dataset):
     """Returns the mean and std of the train set as a 100-dimensional vector."""
-    if dataset == 'ptb':
-        train = PennTreebank('train', n_data=N_TRAIN, normalize=False)
-    elif dataset == 'sst':
-        train = SST('train', n_data=N_TRAIN, normalize=False)
-    loader = DataLoader(train, batch_size=len(train))
-    X_train, y_train = next(iter(loader))
-    X_train = torch.reshape(X_train, (-1, 100))
-    mean = torch.mean(X_train, dim=0)
-    std = torch.std(X_train, dim=0)
-    return mean, std
+    if os.path.isfile(NORM_STATS_FILE):
+        stats = pickle.load(open(NORM_STATS_FILE, 'rb'))
+        return stats[dataset]
+
+    # Find train statistics from scratch.
+    print('[INFO] Calculating normalization statistics.')
+    ptb_train = PennTreebank('train', n_data=N_TRAIN, normalize=False)
+    sst_train = SST('train', n_data=N_TRAIN, normalize=False)
+    ptb_loader = DataLoader(ptb_train, batch_size=len(ptb_train))
+    sst_loader = DataLoader(sst_train, batch_size=len(sst_train))
+    ptb_X_train = next(iter(ptb_loader))[0]
+    sst_X_train = next(iter(sst_loader))[0]
+    ptb_X_train = torch.reshape(ptb_X_train, (-1, 100))
+    sst_X_train = torch.reshape(sst_X_train, (-1, 100))
+    ptb_mean = torch.mean(ptb_X_train, dim=0)
+    ptb_std = torch.std(ptb_X_train, dim=0)
+    sst_mean = torch.mean(sst_X_train, dim=0)
+    sst_std = torch.std(sst_X_train, dim=0)
+    stats = {
+        'ptb': (ptb_mean, ptb_std),
+        'sst': (sst_mean, sst_std)
+    }
+    pickle.dump(stats, open(NORM_STATS_FILE, 'wb'))
+    return get_train_stats(dataset)
 
 
 class EnWik8Clean(data.Dataset):
@@ -309,4 +324,3 @@ class SST(data.Dataset):
 
     def __getitem__(self, index):
         return self.X[index], self.y[index]
-
