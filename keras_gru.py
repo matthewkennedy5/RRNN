@@ -47,10 +47,10 @@ def load_data(dataset):
 
 
 def random_params(dataset):
-    reg = 10 ** np.random.uniform(-16, 0)
-    learning_rate = 10 ** np.random.uniform(-4, -1)
-    epochs = 5
-    batch_size = int(2 ** np.random.uniform(3, 8))
+    reg = 10 ** np.random.uniform(-16, -2)
+    learning_rate = 2 * 10 ** np.random.uniform(-4, -2)
+    epochs = 10
+    batch_size = int(2 ** np.random.uniform(2, 4))
     hidden_size = 100
     params = {'reg': reg, 'learning_rate': learning_rate, 'epochs': epochs,
               'batch_size': batch_size, 'hidden_size': hidden_size, 'dataset': dataset}
@@ -157,17 +157,17 @@ if __name__=='__main__':
     #     'hidden_size': 100,
     #  }
 
-    params = {
-        'batch_size': 16,
-        'epochs': 5,
-        'learning_rate': 1e-2,
-        'reg': 1e-4,
-        'hidden_size': 100,
-        'dataset': 'ptb'
-    }
-    run(params)
+    # params = {
+    #     'batch_size': 16,
+    #     'epochs': 5,
+    #     'learning_rate': 1e-2,
+    #     'reg': 1e-4,
+    #     'hidden_size': 100,
+    #     'dataset': 'ptb'
+    # }
+    # run(params)
 
-    # random_hyperparam_search(100, dataset='ptb')
+    random_hyperparam_search(100, dataset='ptb')
 
 
 
