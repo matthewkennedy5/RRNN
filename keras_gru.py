@@ -43,14 +43,27 @@ def load_data(dataset):
         y_val = y_val.numpy()
         X_test = X_test.numpy().astype(DTYPE)
         y_test = y_test.numpy()
+    elif dataset == 'sst':
+        train_data = standard_data.SST('train', n_data=N_TRAIN, device=DEVICE)
+        train_dataloader = DataLoader(train_data, batch_size=len(train_data))
+        val_data = standard_data.SST('val', n_data=N_VAL, device=DEVICE)
+        val_dataloader = DataLoader(val_data, batch_size=len(val_data))
+        X_train = next(iter(train_dataloader))[0].numpy()
+        y_train = next(iter(train_dataloader))[1].numpy()
+        X_val = next(iter(val_dataloader))[0].numpy()
+        y_val = next(iter(val_dataloader))[1].numpy()
+
+
+    # y_train = np.expand_dims(y_train, 2)
+    # y_val = np.expand_dims(y_val, 2)
     return (X_train, y_train), (X_val, y_val)
 
 
 def random_params(dataset):
     reg = 10 ** np.random.uniform(-16, -2)
-    learning_rate = 2 * 10 ** np.random.uniform(-4, -2)
-    epochs = 10
-    batch_size = int(2 ** np.random.uniform(2, 4))
+    learning_rate = 2 * 10 ** np.random.uniform(-6, -1)
+    epochs = 5
+    batch_size = int(2 ** np.random.uniform(2, 7))
     hidden_size = 100
     params = {'reg': reg, 'learning_rate': learning_rate, 'epochs': epochs,
               'batch_size': batch_size, 'hidden_size': hidden_size, 'dataset': dataset}
@@ -59,23 +72,30 @@ def random_params(dataset):
 
 def run(params):
     (X_train, y_train), (X_val, y_val) = load_data(params['dataset'])
-    if params['dataset'] == 'wiki':
-        n_out = 27
-    elif params['dataset'] == 'ptb':
-        n_out = 10001
+    _, chunk_length, embed_size = X_train.shape
+    if params['dataset'] == 'sst':
+        n_out = 3
+        dense_layer = Dense(n_out, kernel_regularizer=l2(params['reg']))
+        return_sequences = False
+    else:
+        if params['dataset'] == 'wiki':
+            n_out = 27
+        elif params['dataset'] == 'ptb':
+            n_out = 10001
+        dense_layer = TimeDistributed(Dense(n_out, kernel_regularizer=l2(params['reg'])))
+        return_sequences = True
+
     model = Sequential([
-                GRU(params['hidden_size'], return_sequences=True,
-                    input_shape=(CHUNK_LENGTH, X_train.shape[2]),
+                GRU(params['hidden_size'], return_sequences=return_sequences,
+                    input_shape=(chunk_length, embed_size),
                     kernel_regularizer=l2(params['reg']),
                     recurrent_regularizer=l2(params['reg'])),
-                TimeDistributed(Dense(n_out, kernel_regularizer=l2(params['reg']))),
+                dense_layer,
                 Softmax()
             ])
 
     adam = tf.keras.optimizers.Adam(lr=params['learning_rate'])
     model.compile(optimizer=adam, loss='sparse_categorical_crossentropy', metrics=['acc'])
-    y_train = np.expand_dims(y_train, 2)
-    y_val = np.expand_dims(y_val, 2)
     history = model.fit(X_train, y_train, batch_size=params['batch_size'], epochs=params['epochs'],
                         validation_data=(X_val, y_val))
     # model.save('weights.h5')
@@ -157,17 +177,26 @@ if __name__=='__main__':
     #     'hidden_size': 100,
     #  }
 
-    # params = {
-    #     'batch_size': 16,
-    #     'epochs': 5,
-    #     'learning_rate': 1e-2,
-    #     'reg': 1e-4,
-    #     'hidden_size': 100,
-    #     'dataset': 'ptb'
-    # }
-    # run(params)
+    # PTB rough best params
+ #    {'batch_size': 9,
+ # 'dataset': 'ptb',
+ # 'epochs': 5,
+ # 'hidden_size': 100,
+ # 'learning_rate': 0.0025661230665030713,
+ # 'reg': 1.02619565170361e-15}
 
-    random_hyperparam_search(100, dataset='ptb')
+
+    params = {
+        'batch_size': 9,
+        'epochs': 5,
+        'learning_rate': 1e-2,
+        'reg': 1e-8,
+        'hidden_size': 100,
+        'dataset': 'sst'
+    }
+    run(params)
+
+    # random_hyperparam_search(100, dataset='ptb')
 
 
 
