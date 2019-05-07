@@ -25,12 +25,13 @@ params = {  "learning_rate": 1e-4,
             "lambdas": [1, 1e-3, 1e-3, 1e-5],
 #            "switching_epochs": [20, 1020, 1040, 2040, ],
             "nb_train": 64*10,
-            "nb_val": 1,
+            "nb_val": 1000,
             "validate_every": 1,
             "epochs": 10200,
             "loss2_margin": 1,
             "scoring_hidden_size": 64,
             "batch_size": 64,
+            'val_batch_size': 1, 
             "epochs_per_checkpoint": 1,
             "optimizer": "adam",
             "embeddings": "gensim",
@@ -45,6 +46,7 @@ params = {  "learning_rate": 1e-4,
             'structure_decaying_constant': 1,
             'STRUCTURE_HISTORY_DIR': 'structure_history/',
             'STRUCTURE_OPTIMAL_DIR': 'structure_optimal/',
+            'STRUCTURE_HISTORY_VAL': 'structure_val/',
             'CHECKPOINT_DIR': 'checkpoints/',
             'TRAIN_LOSS_FILE': 'train_loss.txt',
             'TRAIN_ACC_FILE': 'train_acc.txt',
@@ -87,14 +89,11 @@ if params['warm_start']:
 # data loader
 print('[INFO] Loading training data into memory.')
 train_set = standard_data.EnWik8Clean(subset='train', n_data=params['nb_train'], device=device)
-validation_set = standard_data.EnWik8Clean(subset='val', n_data=params['nb_val'], device=device)
 train_dataloader = DataLoader(train_set, batch_size=params['batch_size'], shuffle=False, drop_last=True)
-val_dataloader = DataLoader(validation_set, batch_size=params['nb_val'], shuffle=False)
-print('[INFO] Beginning training with %d training samples and %d '
-      'validation samples.' % (len(train_set), len(validation_set)))
+print('[INFO] Beginning training with %d training samples.'%(len(train_set)))
 
 # train
-trainer = RRNNTrainer(model, gru_model, train_dataloader, val_dataloader, params)
+trainer = RRNNTrainer(model, gru_model, train_dataloader, params)
 trainer.train(params['epochs'])
 print()
 print('[INFO] Run complete')

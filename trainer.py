@@ -15,11 +15,10 @@ class RRNNTrainer:
         X_train - Training data. List of 3D torch tensors.
         y_train - Training labels (one-hot)
     """
-    def __init__(self, model, gru_model, train_dataloader, val_dataloader, params):
+    def __init__(self, model, gru_model, train_dataloader, params):
         self.model = model
         self.gru_model = gru_model
         self.train_data = train_dataloader
-        self.val_data = val_dataloader
 
         if params['optimizer'] == 'adam':
             optimizer = torch.optim.Adam(self.model.parameters(), lr=params['learning_rate'])
@@ -90,7 +89,7 @@ class RRNNTrainer:
         return None
 
     def checkpoint_model(self, i_epoch):
-        save_name = 'checkpoint_' + str(i_epoch) + '_' + time.asctime().replace(':', ' ') + '.pt'
+        save_name = 'checkpoint_epoch' + str(i_epoch) + '.pt'
         torch.save(self.model.state_dict(), self.params['CHECKPOINT_DIR']+save_name)
         print('[INFO] Checkpointed the model.')
 
@@ -144,7 +143,8 @@ class RRNNTrainer:
 
             if (i_epoch+1) in self.switching_time:
                 self.switch_train_stages()
-                self.optimal_structures, self.optimal_epochs = self.load_optimal_history(i_epoch)
+                if self.current_stage == 'fixing':
+                    self.optimal_structures, self.optimal_epochs = self.load_optimal_history(i_epoch)
 
             if (self.params['write_every_epoch'] is True) and \
                (self.params['write_every_epoch'] is not True):
@@ -229,11 +229,20 @@ class RRNNTrainer:
         accuracy = (pred_chars_batch.argmax(dim=2)==y).sum().item()/float(time_steps*X.shape[0])
 
         # save batch structure history
-        for i_time_step in range(time_steps):
-            with open(self.params['STRUCTURE_HISTORY_DIR']+'structure_batch%d_time%d.txt'%(i_batch, i_time_step), 'a') as f:
-                lst = [i_epoch, loss1_list[i_time_step].item(), structures_list[i_time_step]]
-                f.write(';'.join([str(s) for s in lst])+'\n')
-        
+        if type(i_epoch) is int:
+            for i_time_step in range(time_steps):
+                with open(self.params['STRUCTURE_HISTORY_DIR']+'structure_batch%d_time%d.txt'%(i_batch, i_time_step), 'a') as f:
+                    lst = [i_epoch, loss1_list[i_time_step].item(), structures_list[i_time_step]]
+                    f.write(';'.join([str(s) for s in lst])+'\n')
+        elif i_epoch.startswith('val_'):
+            i_epoch = int(i_epoch[4:])
+            for i_time_step in range(time_steps):
+                with open(self.params['STRUCTURE_HISTORY_VAL']+'structure_batch%d_time%d.txt'%(i_batch, i_time_step), 'a') as f:
+                    lst = [i_epoch, loss1_list[i_time_step].item(), structures_list[i_time_step]]
+                    f.write(';'.join([str(s) for s in lst])+'\n')
+        else:
+            pass
+    
         return losses, accuracy, structures_list
     
     def validate(self, i_epoch, verbose=True):
