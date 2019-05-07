@@ -245,34 +245,6 @@ class RRNNTrainer:
     
         return losses, accuracy, structures_list
     
-    def validate(self, i_epoch, verbose=True):
-        """Runs inference over the validation set periodically during training.
-
-        Prints the validation loss and accuracy to their respective files.
-        """
-        X_val, y_val = next(iter(self.val_data))
-        val_size, time_steps, hidden_size = X_val.shape
-        losses = np.zeros([val_size, self.params['N_LOSS_TERMS']])
-        accuracy = []
-
-        for i_batch in range(val_size):
-            X = X_val[i_batch, :, :].reshape(1, time_steps, hidden_size)
-            y = y_val[i_batch, :, :].reshape(1, time_steps, -1)
-            loss, acc, _ = self.train_step_stage_searching(X, y, 'val%d'%i_epoch, i_batch)
-            losses[i_batch, :] = loss
-            accuracy.append(acc)
-            
-        losses = losses.mean(axis=0).tolist()
-        accuracy = np.mean(accuracy)
-
-        print('val_loss:', printable(losses), 'val_acc:', accuracy)
-        with open(self.params['VAL_LOSS_FILE'], 'a') as f:
-            f.write('%f %f %f %f\n' % tuple(losses))
-        f.close()
-        with open(self.params['VAL_ACC_FILE'], 'a') as f:
-            f.write('%f\n' % (accuracy,))
-        f.close()
-
 def printable(x):
     """Converts a tuple or list containing tensors and numbers to just numbers.
 
