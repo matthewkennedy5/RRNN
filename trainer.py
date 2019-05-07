@@ -138,7 +138,7 @@ class RRNNTrainer:
             if self.current_stage == 'searching':
                 self.checkpoint_model(i_epoch+1)
                 
-            if self.current_stage == 'fixing' and (i_epoch+1) % 10 == 0:
+            if self.current_stage == 'fixing' and (i_epoch+1) % 100 == 0:
                 self.checkpoint_model(i_epoch+1)
 
             if (i_epoch+1) in self.switching_time:
