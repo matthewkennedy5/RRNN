@@ -18,7 +18,9 @@ from GRU import RRNNforGRU
 import pickle
 import standard_data
 
-dirname = 'test_Mon_May__6_14_06_19_2019'
+if len(sys.argv) != 2:
+    raise ValueError
+dirname = sys.argv[1]
 if not os.path.isdir(dirname):
     raise ValueError("No such directory: %s"%dirname)
 os.chdir(dirname)
