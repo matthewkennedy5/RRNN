@@ -113,7 +113,7 @@ class RRNNTrainer:
 
         for i_epoch in range(n_epochs):
             i_batch = -1
-            print('\n[INFO] Epoch %d/%d' % (i_epoch+1, n_epochs))
+            print('\n[INFO] Epoch %d/%d' % (i_epoch+1, n_epochs) + time.asctime())
             with tqdm(self.train_data) as t:
                 for X_batch, y_batch in self.train_data:
                     i_batch += 1
