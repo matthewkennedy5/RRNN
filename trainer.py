@@ -8,12 +8,13 @@ import numpy as np
 from torch.utils.data import DataLoader
 import time
 import json
+from pprint import pprint
 
 import tree_methods
 from GRU import RRNNforGRU
 import pickle
 import pdb
-from tqdm import tqdm
+from tqdm import tqdm, trange
 import standard_data
 
 VOCAB_SIZE = 27
@@ -153,6 +154,7 @@ class RRNNTrainer:
         loss_history = []
         acc_history = []
         structure_history = []
+        start_time = time.time()
         for e in range(n_epochs):
             print('\n[INFO] Epoch %d/%d' % (e+1, n_epochs))
             with tqdm(self.train_data) as t:
@@ -186,6 +188,10 @@ class RRNNTrainer:
 
             if e % self.params['alternate_every'] == 0:
                 self.switch_train_mode()
+
+            if time.time() - start_time > self.params['max_time']:
+                print('[INFO] Maximum time exceeded:', time.time() - start_time)
+                break
 
         self.model.eval()
         self.gru_model.eval()
@@ -241,7 +247,7 @@ class RRNNTrainer:
 
         loss2 = 0
         if lamb2 != 0:
-            desired_margin = params['loss2_margin']
+            desired_margin = self.params['loss2_margin']
             loss2 = (desired_margin - margins_batch.clamp(max=desired_margin)).sum().div_(desired_margin)
             loss2 /= batch_size
 
@@ -397,8 +403,81 @@ def run(params):
     torch.save(model.state_dict(), 'final_weights.pt')
 
 
+def random_hyperparams():
+    # Standard default parameters
+    params = {
+        'multiplier': 1,
+        'nb_train': 10000,
+        'nb_val': 5000,
+        'validate_every': 1,
+        'epochs': 1000,
+        'epochs_per_checkpoint': 10,
+        'pickle_every': 1,
+        'optimizer': 'adam',
+        'embeddings': 'gensim',
+        'initial_train_mode': 'weights',
+        'warm_start': False,
+        'weights_file': '',
+        'pretrained_weights': False,
+        'device': 'cpu',
+        'dataset': 'ptb',
+        "max_time": 60 * 60   # 1 hour, should by around 100 epochs for batch size of 16
+    }
+
+    # Random hyperparameters
+    params['learning_rate'] = 10 ** np.random.uniform(-5, -2)
+    params['lambdas'] = (
+        1,
+        10 ** np.random.uniform(-2, 1),
+        10 ** np.random.uniform(-16, 1),
+        10 ** np.random.uniform(-6, -2)
+    )
+    params['loss2_margin'] = 10 ** np.random.uniform(-1, 1)
+    params['scoring_hidden_size'] = int(10 ** np.random.uniform(1, 3))
+    params['batch_size'] = int(10 ** np.random.uniform(0, 2.5))
+    params['max_grad'] = 10 ** np.random.uniform(-1, 2)
+    params['alternate_every'] = int(10 ** np.random.uniform(0, 1))
+    # TODO: Add temperature to this
+    return params
+
+
+def random_hyperparam_search(n_runs):
+    # TODO: Make this generate output folders inside a "Runs" folder.
+    print('[INFO] Beginning random hyperparameter search.')
+    best_loss1 = np.Inf
+    best_params = None
+    for i in trange(n_runs):
+        print('\n\n\n' + '-' * 80)
+        dirname = 'run-' + str(time.time())
+        os.mkdir(dirname)
+        os.chdir(dirname)
+        params = random_hyperparams()
+        print('[INFO] Running the following hyperparameters:')
+        pprint(params)
+        run(params)
+
+        # Get val loss
+        val = []
+        with open('val_loss.txt', 'r') as f:
+            for iteration in f:
+                val.append([float(term) for term in iteration.split()])
+        val_loss = np.array(val)
+        min_loss1 = np.min(val_loss[:, 0])
+
+        if min_loss1 < best_loss1:
+            best_loss1 = min_loss1
+            best_params = params
+        os.chdir('..')
+        print('[INFO] Best hyperparameters so far:')
+        pprint(best_params)
+        print('[INFO] Lowest validation loss1 so far:', best_loss1)
+    print('[INFO] Random hyperparameter search complete.')
+
+
 if __name__ == '__main__':
 
+
+    random_hyperparam_search(100)
 
     if platform.system() == 'Windows':
         dirname = 'test %s'%(time.asctime().replace(':', '_'))
@@ -422,7 +501,7 @@ if __name__ == '__main__':
             "warm_start": False,
             "weights_file": "epoch_0.pt",
             "pretrained_weights": False,
-            "device": "cpu"
+            "device": "cpu",
         }
         if not params['warm_start']:
             os.mkdir(dirname)
