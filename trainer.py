@@ -428,9 +428,9 @@ def random_hyperparams():
     params['learning_rate'] = 10 ** np.random.uniform(-5, -2)
     params['lambdas'] = (
         1,
-        10 ** np.random.uniform(-2, 1),
-        10 ** np.random.uniform(-16, 1),
-        10 ** np.random.uniform(-6, -2)
+        30 ** np.random.uniform(-2, 1),
+        30 ** np.random.uniform(-16, 1),
+        30 ** np.random.uniform(-6, -2)
     )
     params['loss2_margin'] = 10 ** np.random.uniform(-1, 1)
     params['scoring_hidden_size'] = int(10 ** np.random.uniform(1, 3))
