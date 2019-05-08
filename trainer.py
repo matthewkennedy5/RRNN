@@ -420,7 +420,7 @@ def random_hyperparams():
         'weights_file': '',
         'pretrained_weights': False,
         'device': 'cpu',
-        'dataset': 'ptb',
+        'dataset': 'sst',
         "max_time": 60 * 60   # 1 hour, should by around 100 epochs for batch size of 16
     }
 
@@ -428,9 +428,9 @@ def random_hyperparams():
     params['learning_rate'] = 10 ** np.random.uniform(-5, -2)
     params['lambdas'] = (
         1,
-        30 ** np.random.uniform(-2, 1),
-        30 ** np.random.uniform(-16, 1),
-        30 ** np.random.uniform(-6, -2)
+        10 ** np.random.uniform(-5, -2),
+        10 ** np.random.uniform(-16, 0),
+        10 ** np.random.uniform(-8, -4),
     )
     params['loss2_margin'] = 10 ** np.random.uniform(-1, 1)
     params['scoring_hidden_size'] = int(10 ** np.random.uniform(1, 3))
@@ -477,7 +477,7 @@ def random_hyperparam_search(n_runs):
 if __name__ == '__main__':
 
 
-    random_hyperparam_search(100)
+    random_hyperparam_search(50)
 
     if platform.system() == 'Windows':
         dirname = 'test %s'%(time.asctime().replace(':', '_'))
