@@ -271,7 +271,7 @@ class PennTreebank(data.Dataset):
 
         if normalize:
             mean, std = get_train_stats('ptb')
-            self.X = (self.X - mean) / std
+            self.X = (self.X - mean.to(device)) / std.to(device)
 
     def __len__(self):
         return self.X.shape[0]
