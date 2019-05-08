@@ -60,10 +60,10 @@ def load_data(dataset):
 
 
 def random_params(dataset):
-    reg = 10 ** np.random.uniform(-16, -2)
-    learning_rate = 10 ** np.random.uniform(-6, -1)
-    epochs = 5
-    batch_size = int(2 ** np.random.uniform(2, 7))
+    reg = 10 ** np.random.uniform(-15, -7)
+    learning_rate = 5 * 10 ** np.random.uniform(-5, -3)
+    epochs = 20
+    batch_size = int(2 ** np.random.uniform(1, 5))
     hidden_size = 100
     params = {'reg': reg, 'learning_rate': learning_rate, 'epochs': epochs,
               'batch_size': batch_size, 'hidden_size': hidden_size, 'dataset': dataset}
@@ -184,6 +184,26 @@ if __name__=='__main__':
  # 'hidden_size': 100,
  # 'learning_rate': 0.0025661230665030713,
  # 'reg': 1.02619565170361e-15}
+
+   # PTB fine best params
+   # {'batch_size': 6,
+   #  'dataset': 'ptb',
+   #  'epochs': 10,
+   #  'hidden_size': 100,
+   #  'learning_rate': 0.000528631741449734,
+   #  'reg': 2.709738411404076e-15}
+
+
+
+   # SST rough best params
+   # {'batch_size': 5,
+   #  'dataset': 'sst',
+   #  'epochs': 5,
+   #  'hidden_size': 100,
+   #  'learning_rate': 0.0005229663827415642,
+   #  'reg': 9.814118622555523e-11}
+
+
 
 
     # params = {
