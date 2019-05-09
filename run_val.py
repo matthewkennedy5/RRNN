@@ -50,7 +50,6 @@ except:
 
 all_checkpoints = []
 for filename in os.listdir(params['CHECKPOINT_DIR']):
-    print(filename)
     if filename.endswith('.pt'):
         all_checkpoints.append(int(filename.lstrip('checkpoint_epoch').rstrip('.pt')))
 
