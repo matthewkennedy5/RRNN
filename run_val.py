@@ -78,8 +78,8 @@ if len(avaliable_checkpoints) > 0:
     for X_batch, y_batch in val_dataloader:
         i_batch += 1
         losses, acc, structures = trainer.train_step_stage_searching(X_batch, y_batch, 'val_%d'%i_epoch, i_batch)
-        record_history(params['VAL_LOSS_FILE'], i_epoch, i_batch, printable(losses))
-        record_history(params['VAL_ACC_FILE'], i_epoch, i_batch, acc)
+        record_history(params['VAL_LOSS_FILE'], i_epoch, i_batch, 1, printable(losses))
+        record_history(params['VAL_ACC_FILE'], i_epoch, i_batch, 1, acc)
         if i_batch%10 == 0:
             print(i_batch, time.time()-timer)
     
