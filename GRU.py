@@ -79,7 +79,8 @@ class RRNNforGRUCell(nn.Module):
         self.R_list[3].requires_grad = True
         self.b_list[3].requires_grad = True
         #################################################
-
+        
+        self.batchnorm = nn.BatchNorm1d(self.hidden_size, affine=False, track_running_stats=False)
         if scoring_hsize is not None:
             self.scoring = nn.Sequential(
                                 nn.Linear(hidden_size, scoring_hsize),
@@ -156,6 +157,9 @@ class RRNNforGRUCell(nn.Module):
                                     V_structure.append([i, j, k, binary_func, 'relu'])                   
             
             V = torch.cat(V, dim=1)
+            
+#            V = self.batchnorm(V)
+            V = (V-V.mean(dim=0))/(1e-5+V.std(dim=0))
             scores = self.scoring(V).reshape(batch_size, 1, -1)
             weighted_vector = torch.matmul(softmax_func(scores), V)
             margin = margins_func(scores)
