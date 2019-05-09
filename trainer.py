@@ -129,8 +129,8 @@ class RRNNTrainer:
                     self.optimizer.step()
 
                     if self.params['write_every_batch'] is True:
-                        record_history(self.params['TRAIN_LOSS_FILE'], i_epoch, i_batch, printable(losses))
-                        record_history(self.params['TRAIN_ACC_FILE'], i_epoch, i_batch, acc)
+                        record_history(self.params['TRAIN_LOSS_FILE'], i_epoch, i_batch, self.current_stage, printable(losses))
+                        record_history(self.params['TRAIN_ACC_FILE'], i_epoch, i_batch, self.current_stage, acc)
                     
                     t.set_postfix(loss=printable(losses))
                     t.update()
@@ -148,8 +148,8 @@ class RRNNTrainer:
 
             if (self.params['write_every_epoch'] is True) and \
                (self.params['write_every_epoch'] is not True):
-                record_history(self.params['TRAIN_LOSS_FILE'], i_epoch, i_batch, printable(losses))
-                record_history(self.params['TRAIN_ACC_FILE'], i_epoch, i_batch, acc)
+                record_history(self.params['TRAIN_LOSS_FILE'], i_epoch, i_batch, self.current_stage, printable(losses))
+                record_history(self.params['TRAIN_ACC_FILE'], i_epoch, i_batch, self.current_stage, acc)
                 print('[INFO] Saved loss, accuracy, and structure history.')                
 
         self.model.eval()
@@ -266,13 +266,20 @@ def printable(x):
 
     return result
 
-def record_history(filename, i_epoch, i_batch, values):
-    if type(values) is list:
-        line = [i_epoch, i_batch] + values
-    elif type(values) in [float, int]:     
-        line = [i_epoch, i_batch, values]
+def record_history(filename, i_epoch, i_batch, stage, values):
+    if stage == 'searching':
+        i_stage = 1
+    elif stage == 'fixing':
+        i_stage = 2
     else:
-        raise ValueError('Unsupported value format!')
+        raise ValueError('Unknown stage: %s'%str(stage))
+
+    if type(values) is list:
+        line = [i_epoch, i_batch, i_stage] + values
+    elif type(values) in [float, int]:     
+        line = [i_epoch, i_batch, i_stage, values]
+    else:
+        raise ValueError('Unsupported value format: %s'%(str(type(values))))
         
     with open(filename, 'a') as f:
         f.write(';'.join([str(s) for s in line])+'\n')
