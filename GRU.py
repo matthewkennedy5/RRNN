@@ -158,8 +158,8 @@ class RRNNforGRUCell(nn.Module):
             
             V = torch.cat(V, dim=1)
             
-#            V = self.batchnorm(V)
-            V = (V-V.mean(dim=0))/(1e-5+V.std(dim=0))
+            V = self.batchnorm(V)
+#            V = (V-V.mean(dim=0))/(1e-5+V.std(dim=0))
             scores = self.scoring(V).reshape(batch_size, 1, -1)
             weighted_vector = torch.matmul(softmax_func(scores), V)
             margin = margins_func(scores)
