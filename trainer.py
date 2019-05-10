@@ -31,7 +31,7 @@ class RRNNTrainer:
 
         self.current_stage = 'searching' # another choice is 'fixing'
         try:
-            self.switching_time = params['switching_time']
+            self.switching_time = params['switching_epochs']
         except:
             s1 = params['stage_searching_epochs']
             s2 = params['stage_fixing_epochs']
