@@ -110,10 +110,15 @@ class RRNNTrainer:
         """
         self.model.train()
         self.gru_model.train()
-
-        for i_epoch in range(n_epochs):
+        
+        if self.params['warm_start'] is True:
+            starting_i_epoch = self.params['starting_i_epoch']
+        else:
+            starting_i_epoch = 0
+            
+        for i_epoch in range(starting_i_epoch, n_epochs):
             i_batch = -1
-            print('\n[INFO] Epoch %d/%d' % (i_epoch+1, n_epochs) + time.asctime())
+            print('\n[INFO] Epoch %d/%d at ' % (i_epoch+1, n_epochs) + time.asctime())
             with tqdm(self.train_data) as t:
                 for X_batch, y_batch in self.train_data:
                     i_batch += 1
