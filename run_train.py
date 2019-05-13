@@ -24,7 +24,7 @@ HIDDEN_SIZE = 100
 params = {  "learning_rate": 1e-3,
             "lambdas": [1, 1e-3, 1e-3, 1e-5],
             "switching_epochs": [100000],
-            "nb_train": 64*10,
+            "nb_train": 5000,
             "nb_val": 1000,
             "validate_every": 1,
             "epochs": 10200,
@@ -36,7 +36,7 @@ params = {  "learning_rate": 1e-3,
             "optimizer": "adam",
             "embeddings": "gensim",
             "initial_train_mode": "weights",
-            "warm_start": True,
+            "warm_start": False,
             "starting_i_epoch": 175,
             "pretrained_weights": False,
             "device": "cpu",
@@ -60,7 +60,6 @@ params = {  "learning_rate": 1e-3,
 # output folder
 if len(sys.argv) != 2:
     dirname = 'test_%s'%(time.asctime().replace(':', '_').replace(' ', '_'))
-    dirname = 'test_Sun_May_12_16_43_42_2019'
 else:
     dirname = sys.argv[1]
     
@@ -73,7 +72,7 @@ for path in [params['STRUCTURE_HISTORY_DIR'], params['STRUCTURE_OPTIMAL_DIR'], p
         os.makedirs(path)
         
 # Assuming we are already in the directory where the output files should be
-if params['warm_start'] is True：:
+if params['warm_start'] is True:
     params['HYPERPARAM_FILE'] = params['HYPERPARAM_FILE'] + str(params['starting_i_epoch'])
 pickle.dump(params, open(params['HYPERPARAM_FILE']+'.pkl', 'wb'))
 with open(params['HYPERPARAM_FILE']+'.txt', 'w') as f:
