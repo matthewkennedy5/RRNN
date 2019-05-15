@@ -408,7 +408,7 @@ def random_hyperparams():
     params = {
         'multiplier': 1,
         'nb_train': 10000,
-        'nb_val': 5000,
+        'nb_val': 1000,
         'validate_every': 1,
         'epochs': 1000,
         'epochs_per_checkpoint': 10,
@@ -420,22 +420,22 @@ def random_hyperparams():
         'weights_file': '',
         'pretrained_weights': False,
         'device': 'cpu',
-        'dataset': 'sst',
+        'dataset': 'wiki',
         "max_time": 60 * 60   # 1 hour, should by around 100 epochs for batch size of 16
     }
 
     # Random hyperparameters
-    params['learning_rate'] = 10 ** np.random.uniform(-5, -2)
+    params['learning_rate'] = 8 * 10 ** np.random.uniform(-4, -2)
     params['lambdas'] = (
         1,
-        10 ** np.random.uniform(-5, -2),
-        10 ** np.random.uniform(-16, 0),
-        10 ** np.random.uniform(-8, -4),
+        3 * 10 ** np.random.uniform(-3, -1),
+        2 * 10 ** np.random.uniform(-6, -4),
+        7 * 10 ** np.random.uniform(-4, -2),
     )
-    params['loss2_margin'] = 10 ** np.random.uniform(-1, 1)
-    params['scoring_hidden_size'] = int(10 ** np.random.uniform(1, 3))
-    params['batch_size'] = int(10 ** np.random.uniform(0, 2.5))
-    params['max_grad'] = 10 ** np.random.uniform(-1, 2)
+    params['loss2_margin'] = 10 ** np.random.uniform(-1, 0.5)
+    params['scoring_hidden_size'] = int(10 ** np.random.uniform(2, 2.6))
+    params['batch_size'] = int(10 ** np.random.uniform(1.5, 2.5))
+    params['max_grad'] = 10 ** np.random.uniform(1.5, 2)
     params['alternate_every'] = int(10 ** np.random.uniform(0, 1))
     # TODO: Add temperature to this
     return params
